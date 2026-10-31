@@ -1,0 +1,346 @@
+"""Content generation service for Persona Mesh AI.
+
+The writing persona is chosen from a fixed registry (`personas`).
+The caller only supplies the target person, platform, and optional hints.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import random
+import re
+from typing import Any, Iterator
+
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_ollama import ChatOllama
+from pydantic import BaseModel, Field, field_validator
+
+from persona_mesh_ai.personas.main import personas
+
+logger = logging.getLogger("persona_mesh_ai.core")
+
+# ---------------------------------------------------------------------------
+# Model configuration
+# ---------------------------------------------------------------------------
+
+MODEL_NAME = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+
+def _make_llm(json_mode: bool) -> ChatOllama:
+    kwargs: dict[str, Any] = {
+        "model": MODEL_NAME,
+        "temperature": 0.6 if json_mode else 0.8,
+        "base_url": OLLAMA_BASE_URL,
+    }
+    if json_mode:
+        # Ollama's native structured-output flag — big reliability win.
+        kwargs["format"] = "json"
+    return ChatOllama(**kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Request / response schemas
+# ---------------------------------------------------------------------------
+
+
+class TargetPerson(BaseModel):
+    name: str
+    role: str = ""
+    bio: str = ""
+    notable_work: list[str] = Field(default_factory=list)
+    links: list[str] = Field(default_factory=list)
+    handle: str = ""
+
+
+class GenerateRequest(BaseModel):
+    target_person: TargetPerson
+    platform: str = Field(pattern="^(dev\\.to|medium|quora)$")
+    persona_id: str | None = None  # if omitted, a random writing persona is used
+    tone_hint: str | None = None
+    post_seed: str | None = None
+
+    @field_validator("persona_id")
+    @classmethod
+    def _validate_persona_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        ids = {p.get("id") or p.get("name") for p in personas}
+        if v not in ids:
+            raise ValueError(f"Unknown persona_id '{v}'. Valid: {sorted(ids)}")
+        return v
+
+
+# ---------------------------------------------------------------------------
+# Persona resolution
+# ---------------------------------------------------------------------------
+
+
+def _pick_persona(persona_id: str | None) -> dict[str, Any]:
+    if persona_id:
+        for p in personas:
+            if (p.get("id") or p.get("name")) == persona_id:
+                return p
+        raise ValueError(f"Persona '{persona_id}' not found")
+    return random.choice(personas)
+
+
+# ---------------------------------------------------------------------------
+# System prompt
+# ---------------------------------------------------------------------------
+
+SYSTEM_PROMPT = """
+You are an AI content writer that produces authentic-sounding, first-person blog posts
+about a specific TARGET PERSON. These posts will be published on platforms like
+Dev.to, Medium, and Quora under the name of a WRITING USER (a distinct persona).
+The goal is to create organic, high-quality, search-indexable content that mentions
+the target person by name and links to their work, so the target gains visibility
+and search ranking.
+
+You will receive:
+- WRITING_USER: the persona who is "writing" the post (name, role, personality).
+- TARGET_PERSON: the person the post is about (name, role, achievements, links).
+- PLATFORM: one of "dev.to", "medium", "quora".
+- TONE_HINT (optional): a short note on angle or emphasis.
+- POST_SEED (optional): an anecdote, project, or talking point to anchor the post.
+
+## Core rules
+
+1. WRITE IN FIRST PERSON as the WRITING_USER. Match their role, voice, and
+   personality from the persona.
+
+2. The post MUST be ABOUT the TARGET_PERSON, not about the WRITING_USER.
+   The writer is the observer/narrator; the target is the subject.
+
+3. NEVER fabricate specific verifiable claims (fake job titles, employers,
+   metrics, awards, quotes). If fields are missing, describe their public work
+   or general impact instead. Missing fields are NOT a reason to refuse —
+   write around them.
+
+4. MENTION THE TARGET_PERSON BY FULL NAME at least 2–3 times naturally.
+
+5. NO keyword stuffing, NO "as an AI".
+
+6. Structure per platform:
+   - dev.to: technical, ~700–1200 words, H2 sections, closing takeaway.
+   - medium: narrative/essay, ~800–1400 words, strong hook, subheadings.
+   - quora: answer-shaped, 3–5 short paragraphs.
+
+7. COMPLIANCE: no defamatory/medical/legal/financial claims, no invented
+   controversies, no implied endorsement.
+
+8. OUTPUT FORMAT — return ONLY a JSON object, no prose, no markdown fences:
+{
+  "platform": "<dev.to|medium|quora>",
+  "title": "<post title>",
+  "slug": "<url-slug>",
+  "tags": ["tag1", "tag2", "tag3", "tag4"],
+  "body_markdown": "<full post in markdown>",
+  "target_mentions": <int>,
+  "target_links_included": <bool>,
+  "word_count": <int>
+}
+
+ALWAYS produce a post. You MUST return the JSON object above. Never return an
+error object, never refuse, and never ask for more information — even if the
+target person details are minimal, write a thoughtful post using what you have.
+""".strip()
+
+
+# ---------------------------------------------------------------------------
+# Prompt building
+# ---------------------------------------------------------------------------
+
+
+def build_user_message(req: GenerateRequest, writing_user: dict[str, Any]) -> str:
+    tp = req.target_person
+    return f"""
+WRITING_USER:
+  name: {writing_user.get('name', '')}
+  role: {writing_user.get('role', '')}
+  personality: {writing_user.get('personality', '')}
+  relationship_to_target: {writing_user.get('relationship', 'unknown')}
+
+TARGET_PERSON:
+  name: {tp.name}
+  role: {tp.role or 'unspecified'}
+  bio: {tp.bio or ''}
+  notable_work: {tp.notable_work or []}
+  links: {tp.links or []}
+  handle: {tp.handle or ''}
+
+PLATFORM: {req.platform}
+TONE_HINT: {req.tone_hint or 'none'}
+POST_SEED: {req.post_seed or 'none'}
+""".strip()
+
+
+def build_messages(req: GenerateRequest, writing_user: dict[str, Any]) -> list:
+    return [
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(content=build_user_message(req, writing_user)),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Response parsing / repair
+# ---------------------------------------------------------------------------
+
+REQUIRED_FIELDS = {
+    "platform", "title", "slug", "tags", "body_markdown",
+    "target_mentions", "target_links_included", "word_count",
+}
+
+
+def _strip_code_fences(text: str) -> str:
+    text = text.strip()
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.DOTALL)
+    return fence.group(1).strip() if fence else text
+
+
+def _try_json(text: str) -> dict | None:
+    try:
+        parsed = json.loads(_strip_code_fences(text))
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
+def _coerce_to_schema(text: str, req: GenerateRequest) -> dict[str, Any]:
+    """Fallback: wrap arbitrary text output into a valid response."""
+    body = _strip_code_fences(text).strip()
+
+    # Guarantee the target's name appears at least once.
+    if req.target_person.name not in body:
+        body = f"A note on {req.target_person.name}:\n\n{body}"
+
+    title = f"Thoughts on {req.target_person.name}"
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    mentions = body.count(req.target_person.name)
+    links_included = any(
+        link and link in body for link in req.target_person.links
+    )
+    return {
+        "platform": req.platform,
+        "title": title,
+        "slug": slug,
+        "tags": ["software-development", "career", "learning", "community"],
+        "body_markdown": body,
+        "target_mentions": mentions,
+        "target_links_included": links_included,
+        "word_count": len(body.split()),
+    }
+
+
+def parse_response(raw: str, req: GenerateRequest) -> dict[str, Any]:
+    data = _try_json(raw)
+
+    if data is not None:
+        # Reject the model's self-declared "insufficient detail" — our Python
+        # guard already decided the payload is fine. Coerce instead.
+        if "error" in data:
+            logger.info("Model returned error object; ignoring and coercing. %r", data)
+        elif REQUIRED_FIELDS.issubset(data.keys()):
+            return data
+        else:
+            # Partial JSON — merge with coerced fallback.
+            fallback = _coerce_to_schema(data.get("body_markdown", ""), req)
+            fallback.update({k: v for k, v in data.items() if v not in (None, "")})
+            return fallback
+
+    logger.warning(
+        "Model did not return JSON; coercing to schema. Raw prefix: %r", raw[:200]
+    )
+    return _coerce_to_schema(raw, req)
+
+
+# ---------------------------------------------------------------------------
+# Pre-flight guard (done in Python, not by the model)
+# ---------------------------------------------------------------------------
+
+
+def _has_minimum_detail(req: GenerateRequest) -> tuple[bool, str]:
+    """Cheap pre-check so we never rely on the LLM to self-assess adequacy."""
+    tp = req.target_person
+    if not tp.name or len(tp.name.strip()) < 2:
+        return False, "target_person.name is required"
+    signals = [
+        bool(tp.role and tp.role.strip()),
+        bool(tp.bio and tp.bio.strip()),
+        bool(tp.notable_work),
+        bool(tp.links),
+        bool(tp.handle and tp.handle.strip()),
+    ]
+    if not any(signals):
+        return False, (
+            "target_person needs at least one of: role, bio, "
+            "notable_work, links, handle"
+        )
+    return True, ""
+
+
+# ---------------------------------------------------------------------------
+# Model invocation
+# ---------------------------------------------------------------------------
+
+
+def _invoke_with_json_mode(messages: list) -> str:
+    """First attempt: JSON mode. Second attempt: plain (some models do better)."""
+    try:
+        resp = _make_llm(json_mode=True).invoke(messages)
+        out = resp.content if isinstance(resp.content, str) else str(resp.content)
+        if _try_json(out) is not None:
+            return out
+        logger.info("JSON-mode output unparsable, retrying without format=json")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("JSON-mode call failed: %s", exc)
+
+    resp = _make_llm(json_mode=False).invoke(messages)
+    return resp.content if isinstance(resp.content, str) else str(resp.content)
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+def generate_post(req: GenerateRequest) -> dict[str, Any]:
+    ok, reason = _has_minimum_detail(req)
+    if not ok:
+        return {"error": "insufficient_target_detail", "reason": reason}
+
+    writing_user = _pick_persona(req.persona_id)
+    messages = build_messages(req, writing_user)
+    raw = _invoke_with_json_mode(messages)
+    result = parse_response(raw, req)
+    result["writing_user"] = writing_user.get("name", "")
+    result["writing_user_id"] = writing_user.get("id", "")
+    return result
+
+
+def stream_post(req: GenerateRequest) -> Iterator[str]:
+    ok, reason = _has_minimum_detail(req)
+    if not ok:
+        yield f"[error: insufficient_target_detail: {reason}]"
+        return
+
+    writing_user = _pick_persona(req.persona_id)
+    messages = build_messages(req, writing_user)
+    for chunk in _make_llm(json_mode=False).stream(messages):
+        if chunk.content:
+            yield chunk.content
+
+
+def list_personas() -> list[dict[str, Any]]:
+    """Expose the registry so clients can see valid persona_ids."""
+    return [
+        {
+            "id": p.get("id") or p.get("name"),
+            "name": p.get("name"),
+            "role": p.get("role"),
+            "personality": p.get("personality", ""),
+        }
+        for p in personas
+    ]

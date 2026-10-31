@@ -1,0 +1,20 @@
+{
+  "target_person": {
+    "name": "Shubham Shah",
+    "role": "Computer Science Student",
+    "bio": "A computer science student with a passion for software development and machine learning.",
+    "notable_work": [
+      "Developed a mobile app",
+      "Contributed to an open-source project"
+    ],
+    "links": [
+      "https://www.linkedin.com/in/bornebyte",
+      "https://x.com/bornebyte"
+    ],
+    "handle": "@bornebyte"
+  },
+  "platform": "medium",
+  "persona_id": "rahul_sharma2349742934789928",
+  "tone_hint": "Highlight Shubham's passion for software development and machine learning.",
+  "post_seed": "I recently attended a webinar where Shubham shared insights on software development and machine learning."
+}
