@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Persona Mesh AI</title>
+    <style>
+        /* ---------- Reset & tokens ---------- */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #fafafa;
+            --surface: #ffffff;
+            --surface-2: #f4f4f5;
+            --border: #e4e4e7;
+            --border-strong: #d4d4d8;
+            --text: #18181b;
+            --text-muted: #71717a;
+            --text-faint: #a1a1aa;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --accent-soft: #eff6ff;
+            --success: #059669;
+            --success-soft: #ecfdf5;
+            --warning: #d97706;
+            --warning-soft: #fffbeb;
+            --danger: #dc2626;
+            --danger-soft: #fef2f2;
+            --radius: 10px;
+            --radius-sm: 6px;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.04);
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Code", monospace;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.55;
+            font-size: 14px;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        /* ---------- Layout ---------- */
+        .app {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+        }
+
+        header.topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: -0.01em;
+        }
+
+        .brand-mark {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: var(--text);
+            color: #fff;
+            display: grid;
+            place-items: center;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--surface-2);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .status .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            transition: background 0.2s;
+        }
+
+        .status.online .dot {
+            background: var(--success);
+        }
+
+        .status.offline .dot {
+            background: var(--danger);
+        }
+
+        .status.checking .dot {
+            background: var(--warning);
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.35;
+            }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media (max-width: 960px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ---------- Card ---------- */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: -0.005em;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* ---------- Form ---------- */
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .field:last-child {
+            margin-bottom: 0;
+        }
+
+        .field label {
+            display: block;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .field label .hint {
+            color: var(--text-faint);
+            font-weight: 400;
+            margin-left: 4px;
+        }
+
+        .field input,
+        .field textarea,
+        .field select {
+            width: 100%;
+            padding: 8px 11px;
+            font-family: var(--font);
+            font-size: 13.5px;
+            color: var(--text);
+            background: var(--surface);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            transition: border-color 0.15s, box-shadow 0.15s;
+            outline: none;
+        }
+
+        .field input:focus,
+        .field textarea:focus,
+        .field select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .field input:disabled,
+        .field textarea:disabled,
+        .field select:disabled {
+            background: var(--surface-2);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .field textarea {
+            resize: vertical;
+            min-height: 62px;
+        }
+
+        .field .error-msg {
+            margin-top: 5px;
+            font-size: 12px;
+            color: var(--danger);
+            display: none;
+        }
+
+        .field.invalid input,
+        .field.invalid textarea {
+            border-color: var(--danger);
+        }
+
+        .field.invalid .error-msg {
+            display: block;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 9px 16px;
+            font-family: var(--font);
+            font-size: 13.5px;
+            font-weight: 500;
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text);
+            border-color: var(--border-strong);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--surface-2);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border-color: transparent;
+        }
+
+        .btn-ghost:hover:not(:disabled) {
+            background: var(--surface-2);
+            color: var(--text);
+        }
+
+        .btn-sm {
+            padding: 6px 10px;
+            font-size: 12.5px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            padding-top: 16px;
+            margin-top: 4px;
+            border-top: 1px solid var(--border);
+        }
+
+        .form-actions .btn-primary {
+            flex: 1;
+        }
+
+        /* ---------- Output panel ---------- */
+        .output-panel {
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .output-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-2);
+            border-top-left-radius: var(--radius);
+            border-top-right-radius: var(--radius);
+            flex-wrap: wrap;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 2px;
+            background: var(--surface);
+            padding: 2px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 5px 12px;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.12s, color 0.12s;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            background: var(--text);
+            color: #fff;
+        }
+
+        .output-toolbar .spacer {
+            flex: 1;
+        }
+
+        .output-body {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(100vh - 220px);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 400px;
+            text-align: center;
+            color: var(--text-muted);
+            padding: 40px 20px;
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--surface-2);
+            display: grid;
+            place-items: center;
+            margin-bottom: 14px;
+            color: var(--text-faint);
+        }
+
+        .empty-state h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .empty-state p {
+            font-size: 13px;
+            max-width: 320px;
+        }
+
+        /* ---------- Markdown rendering ---------- */
+        .markdown h1,
+        .markdown h2,
+        .markdown h3 {
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            margin: 1.4em 0 0.6em;
+            line-height: 1.3;
+        }
+
+        .markdown h1 {
+            font-size: 1.5em;
+        }
+
+        .markdown h2 {
+            font-size: 1.25em;
+        }
+
+        .markdown h3 {
+            font-size: 1.08em;
+        }
+
+        .markdown h1:first-child,
+        .markdown h2:first-child,
+        .markdown h3:first-child {
+            margin-top: 0;
+        }
+
+        .markdown p {
+            margin: 0.8em 0;
+        }
+
+        .markdown ul,
+        .markdown ol {
+            margin: 0.8em 0;
+            padding-left: 1.5em;
+        }
+
+        .markdown li {
+            margin: 0.3em 0;
+        }
+
+        .markdown code {
+            font-family: var(--mono);
+            font-size: 0.9em;
+            background: var(--surface-2);
+            padding: 2px 5px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        .markdown pre {
+            background: #18181b;
+            color: #e4e4e7;
+            padding: 14px 16px;
+            border-radius: var(--radius-sm);
+            overflow-x: auto;
+            margin: 1em 0;
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+
+        .markdown pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font-size: inherit;
+        }
+
+        .markdown blockquote {
+            border-left: 3px solid var(--border-strong);
+            padding-left: 14px;
+            margin: 1em 0;
+            color: var(--text-muted);
+        }
+
+        .markdown a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .markdown a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 1.5em 0;
+        }
+
+        /* ---------- Raw JSON view ---------- */
+        .raw-json {
+            font-family: var(--mono);
+            font-size: 12.5px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--text);
+            background: var(--surface-2);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+        }
+
+        /* ---------- Metadata ---------- */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-2);
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .meta-label {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-faint);
+        }
+
+        .meta-value {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .tag {
+            font-size: 11.5px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        /* ---------- Alerts ---------- */
+        .alert {
+            display: flex;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 14px;
+            border: 1px solid;
+            align-items: flex-start;
+        }
+
+        .alert-icon {
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .alert-body {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .alert-detail {
+            font-family: var(--mono);
+            font-size: 12px;
+            margin-top: 6px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.04);
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .alert-error {
+            background: var(--danger-soft);
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+
+        .alert-warning {
+            background: var(--warning-soft);
+            border-color: #fde68a;
+            color: #92400e;
+        }
+
+        .alert-success {
+            background: var(--success-soft);
+            border-color: #a7f3d0;
+            color: #065f46;
+        }
+
+        .alert-info {
+            background: var(--accent-soft);
+            border-color: #bfdbfe;
+            color: #1e40af;
+        }
+
+        /* ---------- Streaming indicator ---------- */
+        .streaming-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .streaming-indicator .spinner {
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--border-strong);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ---------- Toast ---------- */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+            max-width: 380px;
+        }
+
+        .toast {
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--text);
+            color: #fff;
+            font-size: 13px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            animation: slideIn 0.2s ease-out;
+            word-break: break-word;
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* ---------- Skeleton ---------- */
+        .skeleton {
+            background: linear-gradient(90deg, var(--surface-2) 25%, #ebebed 50%, var(--surface-2) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            to {
+                background-position: -200% 0;
+            }
+        }
+
+        /* ---------- Utility ---------- */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 16px 0;
+        }
+
+        .text-muted {
+            color: var(--text-muted);
+        }
+
+        .text-small {
+            font-size: 12.5px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        details.config {
+            margin-top: 12px;
+            font-size: 12.5px;
+            color: var(--text-muted);
+        }
+
+        details.config summary {
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 0;
+        }
+
+        details.config summary:hover {
+            color: var(--text);
+        }
+
+        details.config>div {
+            padding-top: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+
+        <!-- ============ Header ============ -->
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark">PM</div>
+                <span>Persona Mesh AI</span>
+            </div>
+            <div id="status" class="status checking">
+                <span class="dot"></span>
+                <span id="status-text">Checking connection…</span>
+            </div>
+        </header>
+
+        <!-- ============ Main grid ============ -->
+        <div class="grid">
+
+            <!-- ============ Left: Form ============ -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Generate Post</div>
+                    <button class="btn btn-ghost btn-sm" id="reset-btn" type="button">Reset</button>
+                </div>
+                <div class="card-body">
+                    <form id="gen-form" novalidate>
+
+                        <div class="field">
+                            <label for="platform">Platform</label>
+                            <select id="platform" name="platform">
+                                <option value="medium">Medium</option>
+                                <option value="dev.to">Dev.to</option>
+                                <option value="quora">Quora</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="persona_id">Writing Persona <span class="hint">(optional — random if
+                                    empty)</span></label>
+                            <select id="persona_id" name="persona_id">
+                                <option value="">Auto (random)</option>
+                            </select>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="field" id="field-name">
+                            <label for="tp-name">Target name <span class="hint">(required)</span></label>
+                            <input id="tp-name" name="target_name" type="text" placeholder="e.g. Shubham Shah" />
+                            <div class="error-msg">Name is required (min 2 characters).</div>
+                        </div>
+
+                        <div class="field">
+                            <label for="tp-role">Target role</label>
+                            <input id="tp-role" name="target_role" type="text"
+                                placeholder="e.g. Computer Science Student" />
+                        </div>
+
+                        <div class="field">
+                            <label for="tp-bio">Target bio</label>
+                            <textarea id="tp-bio" name="target_bio"
+                                placeholder="A short description of the target person"></textarea>
+                        </div>
+
+                        <div class="field">
+                            <label for="tp-work">Notable work <span class="hint">(comma-separated)</span></label>
+                            <input id="tp-work" name="target_work" type="text"
+                                placeholder="Mobile app, Open-source contribution" />
+                        </div>
+
+                        <div class="field">
+                            <label for="tp-links">Links <span class="hint">(comma-separated)</span></label>
+                            <input id="tp-links" name="target_links" type="text"
+                                placeholder="https://linkedin.com/in/..., https://x.com/..." />
+                        </div>
+
+                        <div class="field">
+                            <label for="tp-handle">Handle</label>
+                            <input id="tp-handle" name="target_handle" type="text" placeholder="@bornebyte" />
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="field">
+                            <label for="tone_hint">Tone hint <span class="hint">(optional)</span></label>
+                            <input id="tone_hint" name="tone_hint" type="text" placeholder="Highlight passion for ML" />
+                        </div>
+
+                        <div class="field">
+                            <label for="post_seed">Post seed <span class="hint">(optional)</span></label>
+                            <textarea id="post_seed" name="post_seed"
+                                placeholder="An anecdote or talking point to anchor the post"></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" id="submit-btn">
+                                Generate Post
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="stream-btn"
+                                title="Stream tokens as they arrive">
+                                Stream
+                            </button>
+                        </div>
+                    </form>
+
+                    <details class="config">
+                        <summary>Connection settings</summary>
+                        <div class="field" style="margin-top: 10px;">
+                            <label for="api-base">API base URL</label>
+                            <input id="api-base" type="text" value="http://localhost:8000" />
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <!-- ============ Right: Output ============ -->
+            <div class="card output-panel">
+                <div class="output-toolbar">
+                    <div class="tabs">
+                        <button class="tab active" data-view="rendered" type="button">Rendered</button>
+                        <button class="tab" data-view="raw" type="button">Raw JSON</button>
+                    </div>
+                    <div class="spacer"></div>
+                    <div id="streaming-indicator" class="streaming-indicator hidden">
+                        <span class="spinner"></span>
+                        <span>Streaming…</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" id="copy-btn" type="button" disabled>Copy</button>
+                </div>
+
+                <div id="alerts"></div>
+
+                <div id="output-body" class="output-body">
+                    <div class="empty-state" id="empty-state">
+                        <div class="empty-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                            </svg>
+                        </div>
+                        <h3>Nothing generated yet</h3>
+                        <p>Fill in the target person details and click <strong>Generate Post</strong> to create content.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        /* =====================================================================
+           Persona Mesh AI — frontend
+           Handles: form validation, persona loading, health check, non-streaming
+           generation, streaming, error display, markdown rendering, clipboard.
+           ===================================================================== */
+
+        (function () {
+            "use strict";
+
+            // ---------- DOM refs ----------
+            const $ = (id) => document.getElementById(id);
+            const form = $("gen-form");
+            const submitBtn = $("submit-btn");
+            const streamBtn = $("stream-btn");
+            const resetBtn = $("reset-btn");
+            const copyBtn = $("copy-btn");
+            const statusEl = $("status");
+            const statusText = $("status-text");
+            const outputBody = $("output-body");
+            const emptyState = $("empty-state");
+            const alertsEl = $("alerts");
+            const streamingInd = $("streaming-indicator");
+            const apiBaseInput = $("api-base");
+            const personaSelect = $("persona_id");
+            const toastContainer = $("toast-container");
+
+            let currentView = "rendered";
+            let currentResult = null;   // last successful result object
+            let currentRawText = "";    // raw text for copy
+            let busy = false;
+            let abortController = null;
+
+            // ---------- Config ----------
+            const DEFAULT_TIMEOUT_MS = 120000;   // 2 min — local LLMs can be slow
+            const HEALTH_TIMEOUT_MS = 4000;
+
+            // ---------- Utilities ----------
+
+            function apiBase() {
+                const v = (apiBaseInput?.value || "").trim().replace(/\/+$/, "");
+                return v || "http://localhost:8000";
+            }
+
+            function toast(message, type = "") {
+                const el = document.createElement("div");
+                el.className = "toast " + type;
+                el.textContent = message;
+                toastContainer.appendChild(el);
+                setTimeout(() => {
+                    el.style.opacity = "0";
+                    el.style.transition = "opacity 0.2s";
+                    setTimeout(() => el.remove(), 220);
+                }, 3800);
+            }
+
+            function setBusy(value, mode = "") {
+                busy = value;
+                submitBtn.disabled = value;
+                streamBtn.disabled = value;
+                resetBtn.disabled = value;
+                form.querySelectorAll("input, textarea, select").forEach((el) => {
+                    // Don't disable the API base field during generation
+                    if (el === apiBaseInput) return;
+                    el.disabled = value;
+                });
+
+                submitBtn.textContent = value && mode !== "stream" ? "Generating…" : "Generate Post";
+                streamBtn.textContent = value && mode === "stream" ? "Streaming…" : "Stream";
+                streamingInd.classList.toggle("hidden", !(value && mode === "stream"));
+            }
+
+            function clearAlerts() {
+                alertsEl.innerHTML = "";
+            }
+
+            function showAlert(kind, title, message, detail) {
+                const wrap = document.createElement("div");
+                wrap.className = "alert alert-" + kind;
+
+                const icon = {
+                    error: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+                    warning: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+                    success: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+                    info: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+                }[kind] || "";
+
+                wrap.innerHTML = `
+      <div class="alert-icon">${icon}</div>
+      <div class="alert-body">
+        <div class="alert-title"></div>
+        <div class="alert-message"></div>
+        ${detail ? `<div class="alert-detail"></div>` : ""}
+      </div>
+    `;
+                wrap.querySelector(".alert-title").textContent = title;
+                wrap.querySelector(".alert-message").textContent = message;
+                if (detail) wrap.querySelector(".alert-detail").textContent = detail;
+
+                // Dismiss on click
+                wrap.style.cursor = "pointer";
+                wrap.addEventListener("click", () => wrap.remove());
+
+                alertsEl.appendChild(wrap);
+            }
+
+            function escapeHtml(str) {
+                return String(str)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            // ---------- Minimal markdown renderer ----------
+            // Safe subset — no raw HTML passthrough. Handles headings, bold, italic,
+            // inline code, fenced code, lists, links, blockquotes, hr, paragraphs.
+            function renderMarkdown(md) {
+                if (!md) return "";
+                let text = String(md).replace(/\r\n/g, "\n");
+
+                // Extract fenced code blocks first
+                const codeBlocks = [];
+                text = text.replace(/```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+                    const idx = codeBlocks.length;
+                    codeBlocks.push({ lang, code });
+                    return `\u0000CODE${idx}\u0000`;
+                });
+
+                // Escape everything
+                text = escapeHtml(text);
+
+                // Headings
+                text = text.replace(/^###### (.*)$/gm, "<h6>$1</h6>");
+                text = text.replace(/^##### (.*)$/gm, "<h5>$1</h5>");
+                text = text.replace(/^#### (.*)$/gm, "<h4>$1</h4>");
+                text = text.replace(/^### (.*)$/gm, "<h3>$1</h3>");
+                text = text.replace(/^## (.*)$/gm, "<h2>$1</h2>");
+                text = text.replace(/^# (.*)$/gm, "<h1>$1</h1>");
+
+                // Horizontal rule
+                text = text.replace(/^---+$/gm, "<hr/>");
+
+                // Blockquotes
+                text = text.replace(/^&gt; (.*)$/gm, "<blockquote>$1</blockquote>");
+
+                // Bold / italic / inline code
+                text = text.replace(/`([^`\n]+)`/g, "<code>$1</code>");
+                text = text.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+                text = text.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+
+                // Links — only http(s)
+                text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+                    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+                // Auto-link bare URLs
+                text = text.replace(/(^|\s)(https?:\/\/[^\s<]+)/g,
+                    '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
+
+                // Lists — group consecutive li lines
+                const lines = text.split("\n");
+                const out = [];
+                let inUl = false;
+                let inOl = false;
+                for (let raw of lines) {
+                    const ulMatch = raw.match(/^\s*[-*] (.+)$/);
+                    const olMatch = raw.match(/^\s*\d+\. (.+)$/);
+                    if (ulMatch) {
+                        if (!inUl) { out.push("<ul>"); inUl = true; }
+                        if (inOl) { out.push("</ol>"); inOl = false; }
+                        out.push("<li>" + ulMatch[1] + "</li>");
+                    } else if (olMatch) {
+                        if (!inOl) { out.push("<ol>"); inOl = true; }
+                        if (inUl) { out.push("</ul>"); inUl = false; }
+                        out.push("<li>" + olMatch[1] + "</li>");
+                    } else {
+                        if (inUl) { out.push("</ul>"); inUl = false; }
+                        if (inOl) { out.push("</ol>"); inOl = false; }
+                        out.push(raw);
+                    }
+                }
+                if (inUl) out.push("</ul>");
+                if (inOl) out.push("</ol>");
+                text = out.join("\n");
+
+                // Paragraphs — wrap runs of non-block text
+                text = text
+                    .split(/\n{2,}/)
+                    .map((block) => {
+                        const trimmed = block.trim();
+                        if (!trimmed) return "";
+                        // Skip blocks that are already HTML block-level elements
+                        if (/^<(h[1-6]|ul|ol|pre|blockquote|hr|div|p|table)\b/.test(trimmed)) return trimmed;
+                        return "<p>" + trimmed.replace(/\n/g, "<br/>") + "</p>";
+                    })
+                    .join("\n");
+
+                // Restore code blocks (already escaped)
+                text = text.replace(/\u0000CODE(\d+)\u0000/g, (_, idx) => {
+                    const { lang, code } = codeBlocks[parseInt(idx, 10)];
+                    const cls = lang ? ` class="language-${escapeHtml(lang)}"` : "";
+                    return `<pre><code${cls}>${escapeHtml(code.replace(/\n$/, ""))}</code></pre>`;
+                });
+
+                return text;
+            }
+
+            // ---------- Build request payload from form ----------
+            function readForm() {
+                const splitCsv = (v) =>
+                    String(v || "")
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+
+                const payload = {
+                    platform: $("platform").value,
+                    target_person: {
+                        name: $("tp-name").value.trim(),
+                        role: $("tp-role").value.trim(),
+                        bio: $("tp-bio").value.trim(),
+                        notable_work: splitCsv($("tp-work").value),
+                        links: splitCsv($("tp-links").value),
+                        handle: $("tp-handle").value.trim(),
+                    },
+                };
+
+                const personaId = $("persona_id").value;
+                if (personaId) payload.persona_id = personaId;
+
+                const tone = $("tone_hint").value.trim();
+                if (tone) payload.tone_hint = tone;
+
+                const seed = $("post_seed").value.trim();
+                if (seed) payload.post_seed = seed;
+
+                return payload;
+            }
+
+            // ---------- Client-side validation ----------
+            function validateForm() {
+                let ok = true;
+                const nameField = $("field-name");
+                const name = $("tp-name").value.trim();
+
+                if (name.length < 2) {
+                    nameField.classList.add("invalid");
+                    ok = false;
+                } else {
+                    nameField.classList.remove("invalid");
+                }
+
+                // Remove invalid class as soon as user types
+                $("tp-name").addEventListener("input", () => {
+                    if ($("tp-name").value.trim().length >= 2) {
+                        nameField.classList.remove("invalid");
+                    }
+                }, { once: true });
+
+                return ok;
+            }
+
+            // ---------- Health check ----------
+            async function checkHealth() {
+                statusEl.className = "status checking";
+                statusText.textContent = "Checking connection…";
+
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+
+                try {
+                    const res = await fetch(apiBase() + "/health", {
+                        signal: controller.signal,
+                        headers: { Accept: "application/json" },
+                    });
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const data = await res.json().catch(() => ({}));
+                    if (data.status === "healthy") {
+                        statusEl.className = "status online";
+                        statusText.textContent = "API online";
+                    } else {
+                        statusEl.className = "status offline";
+                        statusText.textContent = "API unhealthy";
+                    }
+                } catch (err) {
+                    statusEl.className = "status offline";
+                    statusText.textContent =
+                        err.name === "AbortError" ? "API timeout" : "API offline";
+                } finally {
+                    clearTimeout(timer);
+                }
+            }
+
+            // ---------- Load personas ----------
+            async function loadPersonas() {
+                try {
+                    const res = await fetch(apiBase() + "/api/v1/personas", {
+                        headers: { Accept: "application/json" },
+                    });
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const list = await res.json();
+                    if (!Array.isArray(list)) throw new Error("Unexpected response");
+
+                    // Keep "Auto (random)" first
+                    const currentVal = personaSelect.value;
+                    personaSelect.innerHTML = '<option value="">Auto (random)</option>';
+                    list.forEach((p) => {
+                        const opt = document.createElement("option");
+                        opt.value = p.id || p.name || "";
+                        opt.textContent = p.name
+                            ? `${p.name}${p.role ? " — " + p.role : ""}`
+                            : (p.id || "Unnamed");
+                        personaSelect.appendChild(opt);
+                    });
+                    if (currentVal && [...personaSelect.options].some((o) => o.value === currentVal)) {
+                        personaSelect.value = currentVal;
+                    }
+                } catch (err) {
+                    console.warn("Could not load personas:", err);
+                    // Non-fatal — form still works with random persona
+                }
+            }
+
+            // ---------- Render result ----------
+            function showEmpty() {
+                outputBody.innerHTML = "";
+                outputBody.appendChild(emptyState);
+                emptyState.classList.remove("hidden");
+            }
+
+            function renderResult(result, rawText) {
+                currentResult = result;
+                currentRawText = rawText || JSON.stringify(result, null, 2);
+                copyBtn.disabled = false;
+
+                if (currentView === "raw") {
+                    renderRaw();
+                } else {
+                    renderRendered();
+                }
+            }
+
+            function renderRendered() {
+                outputBody.innerHTML = "";
+                if (!currentResult) return showEmpty();
+
+                // Metadata bar
+                const meta = document.createElement("div");
+                meta.className = "meta-grid";
+                const r = currentResult;
+
+                const metaItems = [
+                    ["Platform", r.platform || "—"],
+                    ["Words", r.word_count != null ? String(r.word_count) : "—"],
+                    ["Mentions", r.target_mentions != null ? String(r.target_mentions) : "—"],
+                    ["Links", r.target_links_included ? "Included" : "Not included"],
+                    ["Author", r.writing_user || "—"],
+                ];
+
+                metaItems.forEach(([label, value]) => {
+                    const item = document.createElement("div");
+                    item.className = "meta-item";
+                    const lbl = document.createElement("div");
+                    lbl.className = "meta-label";
+                    lbl.textContent = label;
+                    const val = document.createElement("div");
+                    val.className = "meta-value";
+                    val.title = value;
+                    val.textContent = value;
+                    item.appendChild(lbl);
+                    item.appendChild(val);
+                    meta.appendChild(item);
+                });
+
+                // Tags
+                if (Array.isArray(r.tags) && r.tags.length) {
+                    const tagItem = document.createElement("div");
+                    tagItem.className = "meta-item";
+                    tagItem.style.gridColumn = "1 / -1";
+                    const lbl = document.createElement("div");
+                    lbl.className = "meta-label";
+                    lbl.textContent = "Tags";
+                    const wrap = document.createElement("div");
+                    wrap.className = "tag-list";
+                    r.tags.forEach((t) => {
+                        const tag = document.createElement("span");
+                        tag.className = "tag";
+                        tag.textContent = t;
+                        wrap.appendChild(tag);
+                    });
+                    tagItem.appendChild(lbl);
+                    tagItem.appendChild(wrap);
+                    meta.appendChild(tagItem);
+                }
+
+                outputBody.appendChild(meta);
+
+                // Title + body
+                const content = document.createElement("div");
+                content.className = "card-body";
+                if (r.title) {
+                    const h1 = document.createElement("h1");
+                    h1.style.fontSize = "1.5em";
+                    h1.style.fontWeight = "600";
+                    h1.style.marginBottom = "14px";
+                    h1.style.letterSpacing = "-0.015em";
+                    h1.textContent = r.title;
+                    content.appendChild(h1);
+                }
+
+                const body = document.createElement("div");
+                body.className = "markdown";
+                body.innerHTML = renderMarkdown(r.body_markdown || "_No content generated._");
+                content.appendChild(body);
+
+                outputBody.appendChild(content);
+            }
+
+            function renderRaw() {
+                outputBody.innerHTML = "";
+                if (!currentResult) return showEmpty();
+
+                const pre = document.createElement("pre");
+                pre.className = "raw-json";
+                pre.textContent = currentRawText || JSON.stringify(currentResult, null, 2);
+                outputBody.appendChild(pre);
+            }
+
+            // ---------- Error handling for API responses ----------
+            async function parseErrorResponse(res) {
+                let body = null;
+                let textBody = "";
+                try {
+                    textBody = await res.text();
+                    body = textBody ? JSON.parse(textBody) : null;
+                } catch {
+                    // Not JSON — use raw text
+                }
+
+                const status = res.status;
+                let title = "Request failed";
+                let message = `The server returned HTTP ${status}.`;
+                let detail = null;
+
+                // FastAPI validation error shape: { detail: [ {loc, msg, type}, ... ] }
+                if (body && Array.isArray(body.detail)) {
+                    title = "Invalid request";
+                    message = "Some fields were rejected by the server.";
+                    detail = body.detail
+                        .map((e) => `${(e.loc || []).join(".")}: ${e.msg}`)
+                        .join("\n");
+                }
+                // Custom error object shape: { detail: { error, reason } }
+                else if (body && body.detail && typeof body.detail === "object") {
+                    title = "Cannot generate";
+                    message = body.detail.error || "Request rejected";
+                    detail = body.detail.reason || null;
+                }
+                // Simple detail string
+                else if (body && typeof body.detail === "string") {
+                    title = "Request failed";
+                    message = body.detail;
+                }
+                // Bare text body
+                else if (textBody && !body) {
+                    detail = textBody.slice(0, 500);
+                }
+
+                return { title, message, detail, status };
+            }
+
+            // ---------- Non-streaming generation ----------
+            async function generate() {
+                if (busy) return;
+                clearAlerts();
+
+                if (!validateForm()) {
+                    showAlert("warning", "Missing information", "Please fill in the required fields.");
+                    return;
+                }
+
+                setBusy(true, "generate");
+                abortController = new AbortController();
+                const timer = setTimeout(() => abortController?.abort(), DEFAULT_TIMEOUT_MS);
+
+                // Show loading skeleton
+                outputBody.innerHTML = "";
+                const skel = document.createElement("div");
+                skel.style.padding = "10px 0";
+                for (let i = 0; i < 5; i++) {
+                    const bar = document.createElement("div");
+                    bar.className = "skeleton";
+                    bar.style.height = "16px";
+                    bar.style.marginBottom = "10px";
+                    bar.style.width = (i === 0 ? "60%" : i === 1 ? "90%" : i === 4 ? "40%" : "100%");
+                    skel.appendChild(bar);
+                }
+                outputBody.appendChild(skel);
+
+                try {
+                    const res = await fetch(apiBase() + "/api/v1/chat", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Accept: "application/json",
+                        },
+                        body: JSON.stringify(readForm()),
+                        signal: abortController.signal,
+                    });
+
+                    if (!res.ok) {
+                        const { title, message, detail } = await parseErrorResponse(res);
+                        showAlert("error", title, message, detail);
+                        showEmpty();
+                        return;
+                    }
+
+                    let data;
+                    try {
+                        data = await res.json();
+                    } catch (parseErr) {
+                        const rawText = await res.text().catch(() => "");
+                        showAlert(
+                            "error",
+                            "Malformed response",
+                            "The server returned something that isn't valid JSON.",
+                            rawText.slice(0, 500)
+                        );
+                        showEmpty();
+                        return;
+                    }
+
+                    // Model-signalled error (should be rare — 422 is normally used)
+                    if (data && data.error) {
+                        showAlert(
+                            "warning",
+                            "Generation declined",
+                            data.error,
+                            data.reason || null
+                        );
+                        showEmpty();
+                        return;
+                    }
+
+                    // Sanity check required fields
+                    if (!data || typeof data !== "object" || !data.body_markdown) {
+                        showAlert(
+                            "warning",
+                            "Unexpected response",
+                            "The response did not include a body. Showing raw output.",
+                            JSON.stringify(data, null, 2).slice(0, 800)
+                        );
+                        // Still show it — don't break
+                    }
+
+                    renderResult(data, JSON.stringify(data, null, 2));
+                    toast("Post generated", "success");
+                } catch (err) {
+                    if (err.name === "AbortError") {
+                        showAlert(
+                            "warning",
+                            "Request timed out",
+                            `The server took longer than ${DEFAULT_TIMEOUT_MS / 1000}s to respond. ` +
+                            "Try a smaller model or shorter prompt."
+                        );
+                    } else if (err instanceof TypeError) {
+                        showAlert(
+                            "error",
+                            "Network error",
+                            "Could not reach the API. Is the server running on " +
+                            apiBase() + "?"
+                        );
+                        statusEl.className = "status offline";
+                        statusText.textContent = "API offline";
+                    } else {
+                        showAlert("error", "Unexpected error", String(err && err.message || err));
+                    }
+                    showEmpty();
+                } finally {
+                    clearTimeout(timer);
+                    setBusy(false);
+                    abortController = null;
+                }
+            }
+
+            // ---------- Streaming generation ----------
+            async function stream() {
+                if (busy) return;
+                clearAlerts();
+
+                if (!validateForm()) {
+                    showAlert("warning", "Missing information", "Please fill in the required fields.");
+                    return;
+                }
+
+                setBusy(true, "stream");
+                abortController = new AbortController();
+                const timer = setTimeout(() => abortController?.abort(), DEFAULT_TIMEOUT_MS);
+
+                // Prepare output area
+                outputBody.innerHTML = "";
+                const content = document.createElement("div");
+                content.className = "card-body";
+                const md = document.createElement("div");
+                md.className = "markdown";
+                content.appendChild(md);
+                outputBody.appendChild(content);
+
+                let accumulated = "";
+                let received = false;
+
+                try {
+                    const res = await fetch(apiBase() + "/api/v1/chat/stream", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Accept: "text/plain",
+                        },
+                        body: JSON.stringify(readForm()),
+                        signal: abortController.signal,
+                    });
+
+                    if (!res.ok) {
+                        const { title, message, detail } = await parseErrorResponse(res);
+                        showAlert("error", title, message, detail);
+                        showEmpty();
+                        return;
+                    }
+
+                    if (!res.body) {
+                        showAlert(
+                            "warning",
+                            "Streaming unsupported",
+                            "This browser or server does not support streaming responses."
+                        );
+                        showEmpty();
+                        return;
+                    }
+
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value, { stream: true });
+                        if (!chunk) continue;
+
+                        accumulated += chunk;
+                        received = true;
+
+                        // Detect the server-side "[error: ...]" prefix
+                        if (accumulated.startsWith("[error:") && accumulated.trim().endsWith("]")) {
+                            const errText = accumulated.trim();
+                            showAlert("warning", "Streaming error", errText.replace(/^\[error:\s*|\]$/g, ""));
+                            continue;
+                        }
+
+                        md.innerHTML = renderMarkdown(accumulated);
+                        // Keep scroll at bottom while streaming
+                        outputBody.scrollTop = outputBody.scrollHeight;
+                    }
+
+                    if (!received) {
+                        showAlert("warning", "Empty stream", "The server closed the stream without sending any content.");
+                        showEmpty();
+                        return;
+                    }
+
+                    // Streaming gives us raw text, not JSON — build a minimal result
+                    // so the Raw JSON tab still works.
+                    const fallback = {
+                        platform: $("platform").value,
+                        title: null,
+                        body_markdown: accumulated,
+                        target_mentions: null,
+                        target_links_included: null,
+                        word_count: accumulated.split(/\s+/).filter(Boolean).length,
+                        writing_user: null,
+                        _streamed: true,
+                    };
+                    currentResult = fallback;
+                    currentRawText = accumulated;
+                    copyBtn.disabled = false;
+
+                    toast("Stream complete", "success");
+                } catch (err) {
+                    if (err.name === "AbortError") {
+                        showAlert("warning", "Stream cancelled", "The request timed out or was aborted.");
+                    } else if (err instanceof TypeError) {
+                        showAlert(
+                            "error",
+                            "Network error",
+                            "Could not reach the API. Is the server running on " +
+                            apiBase() + "?"
+                        );
+                    } else {
+                        showAlert("error", "Streaming error", String(err && err.message || err));
+                    }
+                    if (!accumulated) showEmpty();
+                } finally {
+                    clearTimeout(timer);
+                    setBusy(false);
+                    abortController = null;
+                }
+            }
+
+            // ---------- Copy to clipboard ----------
+            async function copyOutput() {
+                if (!currentRawText && !currentResult) return;
+                const text = currentRawText ||
+                    JSON.stringify(currentResult, null, 2);
+
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(text);
+                    } else {
+                        // Fallback for non-HTTPS contexts
+                        const ta = document.createElement("textarea");
+                        ta.value = text;
+                        ta.style.position = "fixed";
+                        ta.style.left = "-9999px";
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(ta);
+                    }
+                    toast("Copied to clipboard", "success");
+                } catch (err) {
+                    toast("Could not copy: " + (err && err.message || err), "error");
+                }
+            }
+
+            // ---------- Reset form ----------
+            function resetForm() {
+                form.reset();
+                $("field-name").classList.remove("invalid");
+                clearAlerts();
+                showEmpty();
+                currentResult = null;
+                currentRawText = "";
+                copyBtn.disabled = true;
+                toast("Form reset");
+            }
+
+            // ---------- Tabs ----------
+            document.querySelectorAll(".tab").forEach((tab) => {
+                tab.addEventListener("click", () => {
+                    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+                    tab.classList.add("active");
+                    currentView = tab.dataset.view;
+
+                    if (currentView === "raw") renderRaw();
+                    else renderRendered();
+                });
+            });
+
+            // ---------- Event wiring ----------
+            form.addEventListener("submit", (e) => {
+                e.preventDefault();
+                generate();
+            });
+            streamBtn.addEventListener("click", stream);
+            resetBtn.addEventListener("click", resetForm);
+            copyBtn.addEventListener("click", copyOutput);
+
+            // Re-check health when API base changes
+            apiBaseInput.addEventListener("change", () => {
+                loadPersonas();
+                checkHealth();
+            });
+
+            // Warn if the user closes mid-request
+            window.addEventListener("beforeunload", (e) => {
+                if (busy) {
+                    e.preventDefault();
+                    e.returnValue = "";
+                }
+            });
+
+            // ---------- Init ----------
+            (function init() {
+                // Show empty state initially
+                showEmpty();
+
+                // Fetch health + personas in parallel
+                checkHealth();
+                loadPersonas();
+
+                // Re-check health every 30s
+                setInterval(checkHealth, 30000);
+            })();
+        })();
+    </script>
+</body>
+
+</html>

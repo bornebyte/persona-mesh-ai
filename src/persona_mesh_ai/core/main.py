@@ -5,7 +5,7 @@ The caller only supplies the target person, platform, and optional hints.
 """
 
 from __future__ import annotations
-
+import requests
 import json
 import logging
 import os
@@ -157,24 +157,24 @@ target person details are minimal, write a thoughtful post using what you have.
 def build_user_message(req: GenerateRequest, writing_user: dict[str, Any]) -> str:
     tp = req.target_person
     return f"""
-WRITING_USER:
-  name: {writing_user.get('name', '')}
-  role: {writing_user.get('role', '')}
-  personality: {writing_user.get('personality', '')}
-  relationship_to_target: {writing_user.get('relationship', 'unknown')}
+        WRITING_USER:
+        name: {writing_user.get('name', '')}
+        role: {writing_user.get('role', '')}
+        personality: {writing_user.get('personality', '')}
+        relationship_to_target: {writing_user.get('relationship', 'unknown')}
 
-TARGET_PERSON:
-  name: {tp.name}
-  role: {tp.role or 'unspecified'}
-  bio: {tp.bio or ''}
-  notable_work: {tp.notable_work or []}
-  links: {tp.links or []}
-  handle: {tp.handle or ''}
+        TARGET_PERSON:
+        name: {tp.name}
+        role: {tp.role or 'unspecified'}
+        bio: {tp.bio or ''}
+        notable_work: {tp.notable_work or []}
+        links: {tp.links or []}
+        handle: {tp.handle or ''}
 
-PLATFORM: {req.platform}
-TONE_HINT: {req.tone_hint or 'none'}
-POST_SEED: {req.post_seed or 'none'}
-""".strip()
+        PLATFORM: {req.platform}
+        TONE_HINT: {req.tone_hint or 'none'}
+        POST_SEED: {req.post_seed or 'none'}
+    """.strip()
 
 
 def build_messages(req: GenerateRequest, writing_user: dict[str, Any]) -> list:
@@ -344,3 +344,37 @@ def list_personas() -> list[dict[str, Any]]:
         }
         for p in personas
     ]
+
+def post_to_dev_to(post: dict[str, Any]) -> str:
+    """Stub for future Dev.to integration."""
+    logger.info("Posting to Dev.to: %r", post)
+
+    DEV_TO_API_KEY = os.getenv("DEV_TO_API_KEY")
+    if not DEV_TO_API_KEY:
+        logger.warning("DEV_TO_API_KEY not set; skipping actual post.")
+        return {"status": "skipped", "reason": "DEV_TO_API_KEY not set"}
+    
+    url = "https://dev.to/api/articles"
+    headers = {
+        "Content-Type": "application/json",
+        "api-key": DEV_TO_API_KEY
+    }
+
+    payload = {
+        "article": {
+            "title": post['title'],
+            "published": True,  # Creates a draft
+            "body_markdown": post['body_markdown'],
+            "tags": post['tags']
+        }
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+
+    if response.status_code == 201:
+        print("Success! Post created.")
+        print("Article URL:", response.json().get("url"))
+        return {"status": "success", "url": response.json().get("url")}
+    else:
+        print(f"Failed with status code {response.status_code}: {response.text}")
+        return {"status": "error", "code": response.status_code, "message": response.text}

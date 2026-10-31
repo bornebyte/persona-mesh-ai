@@ -8,6 +8,13 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 
+
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+STATIC_DIR = Path(__file__).parent / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+
 from persona_mesh_ai.core.main import (
     GenerateRequest,
     generate_post,
@@ -24,11 +31,22 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # tighten in prod
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+from fastapi.responses import FileResponse
 
 @app.get("/")
-async def root() -> dict[str, str]:
-    return {"name": "Persona Mesh AI", "status": "running", "version": "0.1.0"}
-
+async def root():
+    return FileResponse(STATIC_DIR / "index.html")
 
 @app.get("/health")
 async def health() -> dict[str, str]:
