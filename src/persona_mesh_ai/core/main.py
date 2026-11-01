@@ -1,23 +1,19 @@
-"""Content generation service for Persona Mesh AI.
-
-The writing persona is chosen from a fixed registry (`personas`).
-The caller only supplies the target person, platform, and optional hints.
-"""
+"""Content generation service for Persona Mesh AI using database personas."""
 
 from __future__ import annotations
-import requests
+
 import json
 import logging
 import os
 import random
 import re
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
+import requests
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
-from pydantic import BaseModel, Field, field_validator
-
-from persona_mesh_ai.personas.main import personas
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("persona_mesh_ai.core")
 
@@ -57,20 +53,10 @@ class TargetPerson(BaseModel):
 
 class GenerateRequest(BaseModel):
     target_person: TargetPerson
-    platform: str = Field(pattern="^(dev\\.to|medium|quora)$")
-    persona_id: str | None = None  # if omitted, a random writing persona is used
+    platform: str
+    persona_id: str | None = None
     tone_hint: str | None = None
     post_seed: str | None = None
-
-    @field_validator("persona_id")
-    @classmethod
-    def _validate_persona_id(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        ids = {p.get("id") or p.get("name") for p in personas}
-        if v not in ids:
-            raise ValueError(f"Unknown persona_id '{v}'. Valid: {sorted(ids)}")
-        return v
 
 
 # ---------------------------------------------------------------------------
@@ -78,13 +64,17 @@ class GenerateRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _pick_persona(persona_id: str | None) -> dict[str, Any]:
+def _pick_persona(
+    persona_id: str | None, persona_registry: list[dict[str, Any]]
+) -> dict[str, Any]:
+    if not persona_registry:
+        raise ValueError("No personas are stored in the database")
     if persona_id:
-        for p in personas:
+        for p in persona_registry:
             if (p.get("id") or p.get("name")) == persona_id:
                 return p
         raise ValueError(f"Persona '{persona_id}' not found")
-    return random.choice(personas)
+    return random.choice(persona_registry)
 
 
 # ---------------------------------------------------------------------------
@@ -306,12 +296,14 @@ def _invoke_with_json_mode(messages: list) -> str:
 # ---------------------------------------------------------------------------
 
 
-def generate_post(req: GenerateRequest) -> dict[str, Any]:
+def generate_post(
+    req: GenerateRequest, persona_registry: list[dict[str, Any]]
+) -> dict[str, Any]:
     ok, reason = _has_minimum_detail(req)
     if not ok:
         return {"error": "insufficient_target_detail", "reason": reason}
 
-    writing_user = _pick_persona(req.persona_id)
+    writing_user = _pick_persona(req.persona_id, persona_registry)
     messages = build_messages(req, writing_user)
     raw = _invoke_with_json_mode(messages)
     result = parse_response(raw, req)
@@ -320,30 +312,21 @@ def generate_post(req: GenerateRequest) -> dict[str, Any]:
     return result
 
 
-def stream_post(req: GenerateRequest) -> Iterator[str]:
+def stream_post(
+    req: GenerateRequest, persona_registry: list[dict[str, Any]]
+) -> Iterator[str]:
     ok, reason = _has_minimum_detail(req)
     if not ok:
         yield f"[error: insufficient_target_detail: {reason}]"
         return
 
-    writing_user = _pick_persona(req.persona_id)
+    writing_user = _pick_persona(req.persona_id, persona_registry)
     messages = build_messages(req, writing_user)
     for chunk in _make_llm(json_mode=False).stream(messages):
         if chunk.content:
             yield chunk.content
 
 
-def list_personas() -> list[dict[str, Any]]:
-    """Expose the registry so clients can see valid persona_ids."""
-    return [
-        {
-            "id": p.get("id") or p.get("name"),
-            "name": p.get("name"),
-            "role": p.get("role"),
-            "personality": p.get("personality", ""),
-        }
-        for p in personas
-    ]
 # ---------------------------------------------------------------------------
 # Dev.to publishing
 # ---------------------------------------------------------------------------

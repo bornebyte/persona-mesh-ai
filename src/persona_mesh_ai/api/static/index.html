@@ -200,6 +200,21 @@
             margin-left: 4px;
         }
 
+        .field-note {
+            margin-top: 6px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .field-note a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .field-note a:hover {
+            text-decoration: underline;
+        }
+
         .field input,
         .field textarea,
         .field select {
@@ -951,6 +966,221 @@
             font-weight: 400;
             margin-left: 4px;
         }
+
+        .history-card {
+            margin-top: 20px;
+            min-width: 0;
+        }
+
+        .history-subtitle {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 3px;
+        }
+
+        .history-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+            gap: 10px;
+        }
+
+        .history-item {
+            width: 100%;
+            min-width: 0;
+            padding: 12px;
+            text-align: left;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .history-item:hover,
+        .history-item.active {
+            background: var(--accent-soft);
+            border-color: var(--accent);
+        }
+
+        .history-item-title {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .history-item-meta {
+            display: block;
+            margin-top: 5px;
+            color: var(--text-muted);
+            font-size: 11.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .history-empty {
+            color: var(--text-muted);
+            padding: 12px 0;
+            font-size: 13px;
+        }
+
+        #load-more-history {
+            margin-top: 12px;
+        }
+
+        .markdown,
+        .history-card,
+        .output-body,
+        .output-panel,
+        .grid > .card {
+            min-width: 0;
+        }
+
+        .markdown,
+        .markdown p,
+        .markdown li {
+            overflow-wrap: anywhere;
+        }
+
+        .structured-output {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .structured-output h2 {
+            grid-column: 1 / -1;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .structured-item {
+            min-width: 0;
+            padding: 10px 12px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+        }
+
+        .structured-label {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .structured-value {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .structured-value ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .structured-value .structured-item {
+            margin-top: 6px;
+            background: var(--surface);
+        }
+
+        @media (max-width: 640px) {
+            .app {
+                padding: 16px 12px 36px;
+            }
+
+            .grid {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 14px;
+            }
+
+            .card-header {
+                padding: 14px 16px;
+            }
+
+            .card-body {
+                padding: 16px;
+            }
+
+            .row {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 8px;
+            }
+
+            .output-panel {
+                min-height: 360px;
+            }
+
+            .output-body {
+                max-height: none;
+                min-height: 300px;
+                padding: 16px;
+            }
+
+            .empty-state {
+                min-height: 240px;
+                padding: 28px 12px;
+            }
+
+            .meta-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                padding: 12px;
+            }
+
+            .publish-check-row {
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+
+            .publish-check-row label {
+                min-width: 0;
+            }
+
+            .publish-check-row .check-hint {
+                display: block;
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .app {
+                padding-right: 10px;
+                padding-left: 10px;
+            }
+
+            header.topbar {
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .output-toolbar {
+                padding: 9px 10px;
+            }
+
+            .output-toolbar .spacer {
+                display: none;
+            }
+
+            .tab {
+                padding: 6px 9px;
+            }
+
+            .form-actions {
+                flex-wrap: wrap;
+            }
+
+            .form-actions .btn {
+                flex: 1 1 100%;
+            }
+
+            .meta-grid {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+        }
     </style>
 </head>
 
@@ -983,11 +1213,12 @@
 
                         <div class="field">
                             <label for="platform">Platform</label>
-                            <select id="platform" name="platform">
-                                <option value="medium">Medium</option>
-                                <option value="dev.to">Dev.to</option>
-                                <option value="quora">Quora</option>
+                            <select id="platform" name="platform" disabled>
+                                <option value="">Loading platforms…</option>
                             </select>
+                            <div id="platform-empty-note" class="field-note hidden">
+                                Could not load platforms. Refresh the page or check the API connection.
+                            </div>
                         </div>
 
                         <div class="field">
@@ -996,6 +1227,9 @@
                             <select id="persona_id" name="persona_id">
                                 <option value="">Auto (random)</option>
                             </select>
+                            <div id="persona-empty-note" class="field-note hidden">
+                                No personas are saved yet. <a href="/users">Add one from user management</a>.
+                            </div>
                         </div>
 
                         <div class="divider"></div>
@@ -1063,7 +1297,7 @@
                         <summary>Connection settings</summary>
                         <div class="field" style="margin-top: 10px;">
                             <label for="api-base">API base URL</label>
-                            <input id="api-base" type="text" value="http://localhost:8000" />
+                            <input id="api-base" type="text" value="" placeholder="Current server (same origin)" />
                         </div>
                     </details>
                 </div>
@@ -1105,6 +1339,22 @@
             </div>
 
         </div>
+
+        <section class="card history-card" aria-labelledby="history-title">
+            <div class="card-header">
+                <div>
+                    <div class="card-title" id="history-title">Saved generations</div>
+                    <div class="history-subtitle">Generated posts loaded from the database</div>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="refresh-history" type="button">Refresh</button>
+            </div>
+            <div class="card-body">
+                <div id="history-list" class="history-list" aria-live="polite">
+                    <div class="history-empty">Loading saved generations…</div>
+                </div>
+                <button class="btn btn-ghost btn-sm hidden" id="load-more-history" type="button">Load more</button>
+            </div>
+        </section>
 
         <!-- ============ Publish to Dev.to ============ -->
         <div class="card publish-card" id="publish-card" style="margin-top: 20px;">
@@ -1190,10 +1440,22 @@
             const publishStatusText = $("publish-status-text");
             const publishResult = $("publish-result");
             const refreshAccountsBtn = $("refresh-accounts");
+            const historyList = $("history-list");
+            const refreshHistoryBtn = $("refresh-history");
+            const loadMoreHistoryBtn = $("load-more-history");
+            const personaEmptyNote = $("persona-empty-note");
+            const platformEmptyNote = $("platform-empty-note");
 
             let currentView = "rendered";
             let currentResult = null;   // last successful result object
-                        let currentRawText = "";    // raw text for copy
+            let currentRawText = "";    // raw text for copy
+            let currentGenerationId = null;
+            let historyItems = [];
+            let historyOffset = 0;
+            let historyHasMore = false;
+            let historyBusy = false;
+            let historyRefreshPending = false;
+            let selectedHistoryId = null;
             let busy = false;
             let abortController = null;
 
@@ -1205,7 +1467,7 @@
 
             function apiBase() {
                 const v = (apiBaseInput?.value || "").trim().replace(/\/+$/, "");
-                return v || "http://localhost:8000";
+                return v || window.location.origin;
             }
 
             function toast(message, type = "") {
@@ -1466,11 +1728,54 @@
                             : (p.id || "Unnamed");
                         personaSelect.appendChild(opt);
                     });
+                    personaSelect.disabled = list.length === 0;
+                    personaSelect.options[0].textContent = list.length
+                        ? "Auto (random)"
+                        : "No personas available";
+                    personaEmptyNote.firstChild.textContent = "No personas are saved yet. ";
+                    personaEmptyNote.classList.toggle("hidden", list.length !== 0);
                     if (currentVal && [...personaSelect.options].some((o) => o.value === currentVal)) {
                         personaSelect.value = currentVal;
                     }
                 } catch (err) {
                     console.warn("Could not load personas:", err);
+                    personaSelect.disabled = true;
+                    personaEmptyNote.classList.remove("hidden");
+                    personaEmptyNote.firstChild.textContent = "Could not load personas. ";
+                }
+            }
+
+            async function loadPlatforms() {
+                try {
+                    const res = await fetch(apiBase() + "/api/v1/platforms", {
+                        headers: { Accept: "application/json" },
+                    });
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const list = await res.json();
+                    if (!Array.isArray(list)) throw new Error("Unexpected response");
+
+                    const currentPlatform = $("platform").value;
+                    const select = $("platform");
+                    select.innerHTML = "";
+                    list.forEach((platform) => {
+                        const option = document.createElement("option");
+                        option.value = platform.id;
+                        option.textContent = platform.label || platform.id;
+                        select.appendChild(option);
+                    });
+                    select.disabled = list.length === 0;
+                    platformEmptyNote.textContent = list.length
+                        ? ""
+                        : "No platforms are enabled in the database.";
+                    platformEmptyNote.classList.toggle("hidden", list.length !== 0);
+                    if (list.some(platform => platform.id === currentPlatform)) {
+                        select.value = currentPlatform;
+                    }
+                } catch (err) {
+                    console.warn("Could not load platforms:", err);
+                    $("platform").disabled = true;
+                    platformEmptyNote.classList.remove("hidden");
+                    platformEmptyNote.textContent = "Could not load platforms. Check the API connection and retry.";
                 }
             }
 
@@ -1517,6 +1822,129 @@
                 }
             }
 
+            // ---------- Normalize and render structured output ----------
+            function parseJsonCandidate(value) {
+                if (typeof value !== "string") return null;
+                let candidate = value.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+                try {
+                    return JSON.parse(candidate);
+                } catch { }
+
+                const firstObject = candidate.indexOf("{");
+                const lastObject = candidate.lastIndexOf("}");
+                if (firstObject >= 0 && lastObject > firstObject) {
+                    try { return JSON.parse(candidate.slice(firstObject, lastObject + 1)); } catch { }
+                }
+                return null;
+            }
+
+            function normalizeGeneratedResult(value, fallbackPlatform = "") {
+                let result;
+                if (typeof value === "string") {
+                    const parsed = parseJsonCandidate(value);
+                    result = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+                        ? parsed
+                        : { body_markdown: value };
+                } else if (value && typeof value === "object" && !Array.isArray(value)) {
+                    result = { ...value };
+                } else if (Array.isArray(value)) {
+                    result = { structured_output: value };
+                } else {
+                    result = { data: value };
+                }
+
+                for (let pass = 0; pass < 3; pass++) {
+                    for (const key of ["result", "response", "output", "data", "post", "article"]) {
+                        const nestedValue = result[key];
+                        const nested = nestedValue && typeof nestedValue === "object"
+                            ? nestedValue
+                            : parseJsonCandidate(nestedValue);
+                        if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+                            result = { ...result, ...nested };
+                        } else if (Array.isArray(nested)) {
+                            result.structured_output = nested;
+                        }
+                    }
+                }
+
+                let body = result.body_markdown;
+                if (typeof body !== "string") {
+                    body = [result.markdown, result.content, result.text, result.output]
+                        .find(item => typeof item === "string") || "";
+                }
+                if (!body) {
+                    const structured = [result.markdown, result.content, result.text,
+                        result.output, result.response]
+                        .find(item => item && typeof item !== "string");
+                    if (structured !== undefined) result.structured_output = structured;
+                }
+                const nestedBody = parseJsonCandidate(body);
+                if (nestedBody && typeof nestedBody === "object") {
+                    if (Array.isArray(nestedBody)) {
+                        result.structured_output = nestedBody;
+                        body = "";
+                    } else {
+                        result = { ...result, ...nestedBody };
+                        body = [nestedBody.body_markdown, nestedBody.markdown,
+                            nestedBody.content, nestedBody.text]
+                            .find(item => typeof item === "string") || "";
+                    }
+                }
+                result.body_markdown = body;
+                if (!result.platform && fallbackPlatform) result.platform = fallbackPlatform;
+                return result;
+            }
+
+            function displayLabel(value) {
+                return String(value)
+                    .replace(/[_-]+/g, " ")
+                    .replace(/\b\w/g, letter => letter.toUpperCase());
+            }
+
+            function appendStructuredValue(parent, key, value, depth = 0) {
+                const item = document.createElement("div");
+                item.className = "structured-item";
+                const label = document.createElement("div");
+                label.className = "structured-label";
+                label.textContent = displayLabel(key);
+                item.appendChild(label);
+
+                const content = document.createElement("div");
+                content.className = "structured-value";
+                if (value === null || value === undefined || typeof value !== "object") {
+                    content.textContent = value === null || value === undefined ? "—" : String(value);
+                    item.appendChild(content);
+                    parent.appendChild(item);
+                    return;
+                }
+
+                if (Array.isArray(value)) {
+                    if (value.length === 0) {
+                        content.textContent = "—";
+                    } else {
+                        const list = document.createElement("ul");
+                        value.forEach((entry, index) => {
+                            const listItem = document.createElement("li");
+                            if (entry && typeof entry === "object") {
+                                appendStructuredValue(listItem, `Item ${index + 1}`, entry, depth + 1);
+                            } else {
+                                listItem.textContent = entry == null ? "—" : String(entry);
+                            }
+                            list.appendChild(listItem);
+                        });
+                        content.appendChild(list);
+                    }
+                } else if (depth < 3) {
+                    Object.entries(value).forEach(([childKey, childValue]) => {
+                        appendStructuredValue(content, childKey, childValue, depth + 1);
+                    });
+                } else {
+                    content.textContent = JSON.stringify(value);
+                }
+                item.appendChild(content);
+                parent.appendChild(item);
+            }
+
             // ---------- Render result ----------
             function showEmpty() {
                 outputBody.innerHTML = "";
@@ -1524,11 +1952,21 @@
                 emptyState.classList.remove("hidden");
             }
 
-            function renderResult(result, rawText) {
-                currentResult = result;
+            function renderResult(result, rawText, generationId = null) {
+                currentResult = normalizeGeneratedResult(result, $("platform").value);
+                currentGenerationId = generationId || currentResult.generation_id || null;
+                selectedHistoryId = currentGenerationId;
                 currentRawText = rawText || JSON.stringify(result, null, 2);
                 copyBtn.disabled = false;
                 publishBtn.disabled = false;
+
+                if (currentResult.generation_saved === false) {
+                    showAlert(
+                        "warning",
+                        "Post generated but not saved",
+                        currentResult.save_warning || "The database did not save this generation."
+                    );
+                }
 
                 if (currentView === "raw") {
                     renderRaw();
@@ -1549,7 +1987,7 @@
                     ["Platform", r.platform || "—"],
                     ["Words", r.word_count != null ? String(r.word_count) : "—"],
                     ["Mentions", r.target_mentions != null ? String(r.target_mentions) : "—"],
-                    ["Links", r.target_links_included ? "Included" : "Not included"],
+                    ["Links", r.target_links_included == null ? "—" : (r.target_links_included ? "Included" : "Not included")],
                     ["Author", r.writing_user || "—"],
                 ];
 
@@ -1604,8 +2042,41 @@
 
                 const body = document.createElement("div");
                 body.className = "markdown";
-                body.innerHTML = renderMarkdown(r.body_markdown || "_No content generated._");
-                content.appendChild(body);
+                if (r.body_markdown) {
+                    body.innerHTML = renderMarkdown(r.body_markdown);
+                    content.appendChild(body);
+                }
+
+                const knownFields = new Set([
+                    "platform", "title", "slug", "tags", "body_markdown", "markdown",
+                    "content", "text", "output", "response", "result", "data",
+                    "target_mentions", "target_links_included", "word_count",
+                    "writing_user", "writing_user_id", "target_name", "generation_id",
+                    "generation_saved", "save_warning", "_streamed",
+                ]);
+                const extraFields = Object.entries(r).filter(([key, value]) =>
+                    !knownFields.has(key) && value !== undefined
+                );
+                if (extraFields.length || !r.body_markdown) {
+                    const details = document.createElement("section");
+                    details.className = "structured-output";
+                    if (!r.body_markdown && !r.title) {
+                        const heading = document.createElement("h2");
+                        heading.textContent = "Generated details";
+                        details.appendChild(heading);
+                    } else if (extraFields.length) {
+                        const heading = document.createElement("h2");
+                        heading.textContent = "Additional details";
+                        details.appendChild(heading);
+                    }
+                    extraFields.forEach(([key, value]) => appendStructuredValue(details, key, value));
+                    if (!r.body_markdown && extraFields.length === 0) {
+                        const empty = document.createElement("p");
+                        empty.textContent = "No content was returned.";
+                        details.appendChild(empty);
+                    }
+                    content.appendChild(details);
+                }
 
                 outputBody.appendChild(content);
             }
@@ -1618,6 +2089,144 @@
                 pre.className = "raw-json";
                 pre.textContent = currentRawText || JSON.stringify(currentResult, null, 2);
                 outputBody.appendChild(pre);
+            }
+
+            function formatHistoryDate(value) {
+                if (!value) return "Date unavailable";
+                const date = new Date(value);
+                return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+            }
+
+            function renderHistoryList() {
+                historyList.innerHTML = "";
+                if (historyItems.length === 0) {
+                    const empty = document.createElement("div");
+                    empty.className = "history-empty";
+                    empty.textContent = "No saved generations yet.";
+                    historyList.appendChild(empty);
+                } else {
+                    historyItems.forEach((item) => {
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "history-item" +
+                            (item.id === selectedHistoryId ? " active" : "");
+
+                        const title = document.createElement("span");
+                        title.className = "history-item-title";
+                        title.textContent = item.title || "Untitled generation";
+                        button.appendChild(title);
+
+                        const metadata = document.createElement("span");
+                        metadata.className = "history-item-meta";
+                        metadata.textContent = [
+                            item.platform || "Platform unknown",
+                            item.target_name || "Target unknown",
+                            item.word_count != null ? `${item.word_count} words` : "",
+                            formatHistoryDate(item.created_at),
+                        ].filter(Boolean).join(" · ");
+                        button.appendChild(metadata);
+                        button.addEventListener("click", () => openGeneration(item.id));
+                        historyList.appendChild(button);
+                    });
+                }
+                loadMoreHistoryBtn.classList.toggle("hidden", !historyHasMore);
+            }
+
+            async function loadHistory({ reset = false } = {}) {
+                if (historyBusy) {
+                    if (reset) historyRefreshPending = true;
+                    return;
+                }
+                if (reset) {
+                    historyOffset = 0;
+                    historyItems = [];
+                    historyHasMore = false;
+                    renderHistoryList();
+                }
+                historyBusy = true;
+                refreshHistoryBtn.disabled = true;
+                loadMoreHistoryBtn.disabled = true;
+                try {
+                    const query = new URLSearchParams({
+                        limit: "25",
+                        offset: String(historyOffset),
+                    });
+                    const res = await fetch(apiBase() + "/api/v1/generations?" + query, {
+                        headers: { Accept: "application/json" },
+                    });
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const data = await res.json();
+                    if (!data || !Array.isArray(data.items)) {
+                        throw new Error("Unexpected history response");
+                    }
+
+                    const existingIds = new Set(historyItems.map(item => item.id));
+                    data.items.forEach(item => {
+                        if (!existingIds.has(item.id)) historyItems.push(item);
+                    });
+                    historyOffset = historyItems.length;
+                    historyHasMore = Boolean(data.has_more);
+                    renderHistoryList();
+                } catch (err) {
+                    if (historyItems.length === 0) {
+                        historyList.innerHTML = "";
+                        const failure = document.createElement("div");
+                        failure.className = "history-empty";
+                        failure.textContent = "Could not load saved generations. Use Refresh to try again.";
+                        historyList.appendChild(failure);
+                    } else {
+                        toast("Could not load more history", "error");
+                    }
+                    console.warn("Could not load generation history:", err);
+                } finally {
+                    historyBusy = false;
+                    refreshHistoryBtn.disabled = false;
+                    loadMoreHistoryBtn.disabled = false;
+                    loadMoreHistoryBtn.classList.toggle("hidden", !historyHasMore);
+                    if (historyRefreshPending) {
+                        historyRefreshPending = false;
+                        loadHistory({ reset: true });
+                    }
+                }
+            }
+
+            async function openGeneration(generationId) {
+                try {
+                    const res = await fetch(
+                        apiBase() + "/api/v1/generations/" + encodeURIComponent(generationId),
+                        { headers: { Accept: "application/json" } }
+                    );
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const record = await res.json();
+                    if (!record || !record.result) throw new Error("Saved output is unavailable");
+
+                    const request = record.request || {};
+                    const target = request.target_person || {};
+                    if ([...$("platform").options].some(option => option.value === request.platform)) {
+                        $("platform").value = request.platform;
+                    }
+                    $("persona_id").value = request.persona_id || "";
+                    $("tp-name").value = target.name || "";
+                    $("tp-role").value = target.role || "";
+                    $("tp-bio").value = target.bio || "";
+                    $("tp-work").value = Array.isArray(target.notable_work)
+                        ? target.notable_work.join(", ") : "";
+                    $("tp-links").value = Array.isArray(target.links) ? target.links.join(", ") : "";
+                    $("tp-handle").value = target.handle || "";
+                    $("tone_hint").value = request.tone_hint || "";
+                    $("post_seed").value = request.post_seed || "";
+
+                    selectedHistoryId = record.id;
+                    clearAlerts();
+                    renderHistoryList();
+                    renderResult(
+                        record.result,
+                        record.raw_text || JSON.stringify(record.result, null, 2),
+                        record.id
+                    );
+                } catch (err) {
+                    showAlert("error", "Could not open saved generation", String(err.message || err));
+                }
             }
 
             // ---------- Error handling for API responses ----------
@@ -1727,17 +2336,11 @@
                         return;
                     }
 
-                    if (!data || typeof data !== "object" || !data.body_markdown) {
-                        showAlert(
-                            "warning",
-                            "Unexpected response",
-                            "The response did not include a body. Showing raw output.",
-                            JSON.stringify(data, null, 2).slice(0, 800)
-                        );
-                    }
-
-                    renderResult(data, JSON.stringify(data, null, 2));
-                    toast("Post generated", "success");
+                    const normalized = normalizeGeneratedResult(data, $("platform").value);
+                    renderResult(normalized, JSON.stringify(data, null, 2));
+                    toast(data.generation_saved === false ? "Post generated; save failed" : "Post generated",
+                        data.generation_saved === false ? "error" : "success");
+                    await loadHistory({ reset: true });
                 } catch (err) {
                     if (err.name === "AbortError") {
                         showAlert(
@@ -1848,22 +2451,18 @@
                         return;
                     }
 
-                    const fallback = {
-                        platform: $("platform").value,
-                        title: null,
-                        body_markdown: accumulated,
-                        target_mentions: null,
-                        target_links_included: null,
-                        word_count: accumulated.split(/\s+/).filter(Boolean).length,
-                        writing_user: null,
-                        tags: [],
-                        _streamed: true,
-                    };
-                    currentResult = fallback;
-                    currentRawText = accumulated;
-                    copyBtn.disabled = false;
-                    publishBtn.disabled = false;
+                    if (accumulated.trim().startsWith("[error:")) {
+                        showEmpty();
+                        return;
+                    }
 
+                    const streamedResult = normalizeGeneratedResult(accumulated, $("platform").value);
+                    streamedResult._streamed = true;
+                    if (streamedResult.word_count == null && streamedResult.body_markdown) {
+                        streamedResult.word_count = streamedResult.body_markdown.split(/\s+/).filter(Boolean).length;
+                    }
+                    renderResult(streamedResult, accumulated);
+                    await loadHistory({ reset: true });
                     toast("Stream complete", "success");
                 } catch (err) {
                     if (err.name === "AbortError") {
@@ -2035,7 +2634,7 @@
             // ---------- Copy to clipboard ----------
             async function copyOutput() {
                 if (!currentRawText && !currentResult) return;
-                const text = currentRawText || JSON.stringify(currentResult, null, 2);
+                const text = currentResult?.body_markdown || currentRawText || JSON.stringify(currentResult, null, 2);
 
                 try {
                     if (navigator.clipboard && window.isSecureContext) {
@@ -2064,6 +2663,9 @@
                 showEmpty();
                 currentResult = null;
                 currentRawText = "";
+                currentGenerationId = null;
+                selectedHistoryId = null;
+                renderHistoryList();
                 copyBtn.disabled = true;
                 publishBtn.disabled = true;
                 publishResult.classList.add("hidden");
@@ -2094,10 +2696,14 @@
             copyBtn.addEventListener("click", copyOutput);
             publishBtn.addEventListener("click", publishToDevTo);
             refreshAccountsBtn.addEventListener("click", loadDevToAccounts);
+            refreshHistoryBtn.addEventListener("click", () => loadHistory({ reset: true }));
+            loadMoreHistoryBtn.addEventListener("click", () => loadHistory());
 
             apiBaseInput.addEventListener("change", () => {
+                loadPlatforms();
                 loadPersonas();
                 loadDevToAccounts();
+                loadHistory({ reset: true });
                 checkHealth();
             });
 
@@ -2112,9 +2718,13 @@
             (function init() {
                 showEmpty();
                 checkHealth();
+                loadPlatforms();
                 loadPersonas();
                 loadDevToAccounts();
+                loadHistory({ reset: true });
                 setInterval(checkHealth, 30000);
+                setInterval(loadPlatforms, 30000);
+                setInterval(loadPersonas, 30000);
             })();
         })();
     </script>
