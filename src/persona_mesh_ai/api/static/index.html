@@ -2841,6 +2841,7 @@
 
                 let accumulated = "";
                 let received = false;
+                const finalResultMarker = "\n\n__PERSONA_MESH_FINAL_RESULT__";
 
                 try {
                     const res = await fetch(apiBase() + "/api/v1/chat/stream", {
@@ -2883,15 +2884,20 @@
                         accumulated += chunk;
                         received = true;
 
-                        if (accumulated.startsWith("[error:") && accumulated.trim().endsWith("]")) {
-                            const errText = accumulated.trim();
+                        const markerIndex = accumulated.indexOf(finalResultMarker);
+                        const liveText = markerIndex >= 0
+                            ? accumulated.slice(0, markerIndex) : accumulated;
+                        if (liveText.startsWith("[error:") && liveText.trim().endsWith("]")) {
+                            const errText = liveText.trim();
                             showAlert("warning", "Streaming error", errText.replace(/^\[error:\s*|\]$/g, ""));
                             continue;
                         }
 
-                        md.innerHTML = renderMarkdown(accumulated);
+                        md.innerHTML = renderMarkdown(liveText);
                         outputBody.scrollTop = outputBody.scrollHeight;
                     }
+                    const decoderTail = decoder.decode();
+                    if (decoderTail) accumulated += decoderTail;
 
                     if (!received) {
                         showAlert("warning", "Empty stream", "The server closed the stream without sending any content.");
@@ -2899,17 +2905,33 @@
                         return;
                     }
 
-                    if (accumulated.trim().startsWith("[error:")) {
+                    const markerIndex = accumulated.indexOf(finalResultMarker);
+                    const rawStreamText = markerIndex >= 0
+                        ? accumulated.slice(0, markerIndex) : accumulated;
+                    if (rawStreamText.trim().startsWith("[error:")) {
                         showEmpty();
                         return;
                     }
 
-                    const streamedResult = normalizeGeneratedResult(accumulated, $("platform").value);
+                    let finalEnvelope = null;
+                    if (markerIndex >= 0) {
+                        try {
+                            finalEnvelope = JSON.parse(
+                                accumulated.slice(markerIndex + finalResultMarker.length).trim()
+                            );
+                        } catch (err) {
+                            console.warn("Could not parse normalized stream result:", err);
+                        }
+                    }
+                    const streamedResult = normalizeGeneratedResult(
+                        finalEnvelope?.result || rawStreamText,
+                        $("platform").value
+                    );
                     streamedResult._streamed = true;
                     if (streamedResult.word_count == null && streamedResult.body_markdown) {
                         streamedResult.word_count = streamedResult.body_markdown.split(/\s+/).filter(Boolean).length;
                     }
-                    renderResult(streamedResult, accumulated);
+                    renderResult(streamedResult, rawStreamText, finalEnvelope?.generation_id);
                     await loadHistory({ reset: true });
                     toast("Stream complete", "success");
                 } catch (err) {
@@ -3134,6 +3156,14 @@
                 if (publishing) return;
                 if (!currentResult) {
                     toast("Generate a post first", "error");
+                    return;
+                }
+                if (!String(currentResult.title || "").trim()) {
+                    showAlert("error", "Missing title", "The generated post has no title. Generate it again before publishing.");
+                    return;
+                }
+                if (!String(currentResult.body_markdown || "").trim()) {
+                    showAlert("error", "Missing post body", "The generated post has no body. Generate it again before publishing.");
                     return;
                 }
                 const accountIds = selectedDevToAccounts();

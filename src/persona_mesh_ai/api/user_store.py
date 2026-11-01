@@ -241,6 +241,10 @@ def update_user(user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     if existing is None:
         return None
 
+    new_user_id = str(payload.get("id", user_id) or "").strip()
+    if not new_user_id:
+        raise ValueError("id cannot be empty")
+
     fields = {
         field: existing[field]
         for field in ("name", "role", "description", "relationship", "personality")
@@ -265,11 +269,12 @@ def update_user(user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
                 conn.execute(
                     """
                     UPDATE users
-                       SET name = ?, role = ?, description = ?, relationship = ?,
+                       SET persona_id = ?, name = ?, role = ?, description = ?, relationship = ?,
                            personality = ?, updated_at = ?
                      WHERE persona_id = ?
                     """,
                     (
+                        new_user_id,
                         fields["name"],
                         fields["role"],
                         fields["description"],
@@ -283,11 +288,12 @@ def update_user(user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
                 conn.execute(
                     """
                     UPDATE users
-                       SET api_key = ?, name = ?, role = ?, description = ?,
+                       SET persona_id = ?, api_key = ?, name = ?, role = ?, description = ?,
                            relationship = ?, personality = ?, updated_at = ?
                      WHERE persona_id = ?
                     """,
                     (
+                        new_user_id,
                         api_key,
                         fields["name"],
                         fields["role"],
@@ -301,9 +307,11 @@ def update_user(user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         except sqlite3.IntegrityError as exc:
             if "api_key" in str(exc):
                 raise ValueError("api_key already exists") from exc
+            if "persona_id" in str(exc):
+                raise ValueError("id already exists") from exc
             raise
 
-    return get_user(user_id)
+    return get_user(new_user_id)
 
 
 def delete_user(user_id: str) -> bool:

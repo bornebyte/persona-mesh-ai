@@ -662,7 +662,7 @@
                         <div class="section-title">Persona</div>
 
                         <div class="field">
-                            <label for="f-id">ID <span class="hint">(required)</span></label>
+                            <label for="f-id">ID / username <span class="hint">(required, editable)</span></label>
                             <input id="f-id" type="text" autocomplete="off" spellcheck="false"
                                 placeholder="rahul_sharma2349742934789928" />
                         </div>
@@ -894,7 +894,7 @@
 
             function populateForm(user) {
                 $("f-id").value = user.id || "";
-                $("f-id").readOnly = true;
+                $("f-id").readOnly = false;
                 $("f-name").value = user.name || "";
                 $("f-role").value = user.role || "";
                 $("f-description").value = user.description || "";
@@ -996,7 +996,6 @@
 
                 try {
                     const isUpdate = editingUserId != null;
-                    if (isUpdate) delete payload.id;
                     const url = isUpdate
                         ? apiBase() + "/api/v1/users/" + encodeURIComponent(editingUserId)
                         : apiBase() + "/api/v1/users";

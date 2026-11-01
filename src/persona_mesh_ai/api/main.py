@@ -38,6 +38,7 @@ STATIC_DIR.mkdir(exist_ok=True)
 
 logger = logging.getLogger("persona_mesh_ai.api")
 logging.basicConfig(level=logging.INFO)
+STREAM_RESULT_MARKER = "\n\n__PERSONA_MESH_FINAL_RESULT__"
 
 
 @asynccontextmanager
@@ -303,33 +304,58 @@ def chat_stream(request: GenerateRequest) -> StreamingResponse:
         finally:
             raw_text = "".join(chunks)
             if raw_text and not raw_text.startswith("[error:"):
+                result: dict[str, Any] | None = None
+                generation_id: int | None = None
                 try:
                     result = parse_response(raw_text, effective_request)
                     result["writing_user"] = writing_user["name"]
                     result["writing_user_id"] = writing_user["id"]
                     result["target_name"] = effective_request.target_person.name
-                    generation_id = generation_store.save_generation(
-                        effective_request.model_dump(),
-                        result,
-                        raw_text=raw_text,
-                        generation_mode="stream",
-                        status="completed" if completed else "partial",
-                    )
-                    activity_store.log_event(
-                        "generation_completed" if completed else "generation_partial",
-                        "generation",
-                        f"Streamed a post: {result.get('title') or 'Untitled'}",
-                        entity_id=generation_id,
-                        actor_id=writing_user.get("id"),
-                        actor_name=writing_user.get("name"),
-                        details={
-                            "platform": result.get("platform"),
-                            "target_name": result.get("target_name"),
-                            "word_count": result.get("word_count"),
-                        },
-                    )
+                    try:
+                        generation_id = generation_store.save_generation(
+                            effective_request.model_dump(),
+                            result,
+                            raw_text=raw_text,
+                            generation_mode="stream",
+                            status="completed" if completed else "partial",
+                        )
+                        result["generation_id"] = generation_id
+                        result["generation_saved"] = True
+                    except sqlite3.Error:
+                        logger.exception("Streamed content could not be saved")
+                        result["generation_saved"] = False
+                        result["save_warning"] = (
+                            "The post was generated but could not be saved to the database."
+                        )
+                    try:
+                        if generation_id is not None:
+                            activity_store.log_event(
+                                "generation_completed"
+                                if completed
+                                else "generation_partial",
+                                "generation",
+                                f"Streamed a post: {result.get('title') or 'Untitled'}",
+                                entity_id=generation_id,
+                                actor_id=writing_user.get("id"),
+                                actor_name=writing_user.get("name"),
+                                details={
+                                    "platform": result.get("platform"),
+                                    "target_name": result.get("target_name"),
+                                    "word_count": result.get("word_count"),
+                                },
+                            )
+                    except sqlite3.Error:
+                        logger.exception(
+                            "Stream generation activity could not be recorded"
+                        )
                 except Exception:
-                    logger.exception("Streamed content could not be saved")
+                    logger.exception("Streamed content could not be normalized")
+                if result is not None:
+                    yield STREAM_RESULT_MARKER + json.dumps(
+                        {"result": result, "generation_id": generation_id},
+                        ensure_ascii=False,
+                        default=str,
+                    )
 
     return StreamingResponse(_gen(), media_type="text/plain")
 
@@ -420,6 +446,13 @@ def devto_accounts() -> list[dict[str, Any]]:
 
 @app.post("/api/v1/devto/publish")
 async def devto_publish(request: DevToPublishRequest) -> dict[str, Any]:
+    title = str(request.post.get("title") or "").strip()
+    body_markdown = str(request.post.get("body_markdown") or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Post title is required")
+    if not body_markdown:
+        raise HTTPException(status_code=422, detail="Post body is required")
+
     account_ids = list(
         dict.fromkeys(
             request.account_ids

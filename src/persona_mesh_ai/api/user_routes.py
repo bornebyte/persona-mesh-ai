@@ -59,12 +59,23 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    id: str | None = Field(default=None, min_length=1)
     name: str | None = None
     role: str | None = None
     description: str | None = None
     relationship: str | None = None
     personality: str | None = None
     api_key: str | None = Field(default=None, min_length=1)
+
+    @field_validator("id")
+    @classmethod
+    def normalize_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("id cannot be empty")
+        return value
 
 
 @router.get("")
@@ -220,7 +231,11 @@ def update_user(user_id: str, body: UserUpdate) -> dict[str, Any]:
         entity_id=user_id,
         actor_id=user_id,
         actor_name=user["name"],
-        details={"fields": sorted(body.model_dump(exclude_unset=True).keys())},
+        details={
+            "fields": sorted(body.model_dump(exclude_unset=True).keys()),
+            "previous_id": user_id,
+            "new_id": user["id"],
+        },
     )
     return user
 

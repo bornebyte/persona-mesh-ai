@@ -205,6 +205,65 @@ def _try_json(text: str) -> dict | None:
         return None
 
 
+def _recover_json_like_response(
+    text: str, req: GenerateRequest
+) -> dict[str, Any] | None:
+    """Recover common model output that wraps Markdown in an invalid JSON object."""
+    candidate = _strip_code_fences(text)
+    body_match = re.search(r'"body_markdown"\s*:\s*', candidate)
+    if body_match is None:
+        return None
+
+    body_start = body_match.end()
+    remainder = candidate[body_start:]
+    fence = re.match(r"```(?:markdown|md)?\s*", remainder, re.IGNORECASE)
+    if fence:
+        remainder = remainder[fence.end() :]
+
+    boundary = re.search(
+        r"\s*```\s*,?\s*['\"]?target_mentions['\"]?\s*:"
+        r"|\s*,\s*['\"]?target_mentions['\"]?\s*:",
+        remainder,
+        re.IGNORECASE,
+    )
+    body = remainder[: boundary.start()] if boundary else remainder
+    body = body.strip().removesuffix("```").strip().rstrip(",")
+    if body.endswith('"'):
+        body = body[:-1].rstrip()
+    if not body:
+        return None
+
+    recovered = _coerce_to_schema(body, req)
+    for field in ("title", "slug"):
+        match = re.search(rf'"{field}"\s*:\s*("(?:\\.|[^"\\])*")', candidate)
+        if match:
+            try:
+                recovered[field] = json.loads(match.group(1))
+            except json.JSONDecodeError:
+                pass
+    tags_match = re.search(r'"tags"\s*:\s*(\[[^\]]*\])', candidate, re.DOTALL)
+    if tags_match:
+        try:
+            tags = json.loads(tags_match.group(1))
+            if isinstance(tags, list):
+                recovered["tags"] = normalize_devto_tags(tags)
+        except json.JSONDecodeError:
+            pass
+    for field, pattern, converter in (
+        ("target_mentions", r'"target_mentions"\s*:\s*(\d+)', int),
+        ("word_count", r'"word_count"\s*:\s*(\d+)', int),
+        (
+            "target_links_included",
+            r'"target_links_included"\s*:\s*(true|false)',
+            lambda value: value == "true",
+        ),
+    ):
+        match = re.search(pattern, candidate, re.IGNORECASE)
+        if match:
+            recovered[field] = converter(match.group(1))
+    return recovered
+
+
 def _coerce_to_schema(text: str, req: GenerateRequest) -> dict[str, Any]:
     """Fallback: wrap arbitrary text output into a valid response."""
     body = _strip_code_fences(text).strip()
@@ -239,13 +298,24 @@ def parse_response(raw: str, req: GenerateRequest) -> dict[str, Any]:
             logger.info("Model returned error object; ignoring and coercing. %r", data)
         elif REQUIRED_FIELDS.issubset(data.keys()):
             data["tags"] = normalize_devto_tags(data.get("tags"))
+            if isinstance(data.get("body_markdown"), str):
+                data["body_markdown"] = _strip_code_fences(data["body_markdown"])
             return data
         else:
             # Partial JSON — merge with coerced fallback.
             fallback = _coerce_to_schema(data.get("body_markdown", ""), req)
             fallback.update({k: v for k, v in data.items() if v not in (None, "")})
             fallback["tags"] = normalize_devto_tags(fallback.get("tags"))
+            if isinstance(fallback.get("body_markdown"), str):
+                fallback["body_markdown"] = _strip_code_fences(
+                    fallback["body_markdown"]
+                )
             return fallback
+
+    recovered = _recover_json_like_response(raw, req)
+    if recovered is not None:
+        recovered["tags"] = normalize_devto_tags(recovered.get("tags"))
+        return recovered
 
     logger.warning(
         "Model did not return JSON; coercing to schema. Raw prefix: %r", raw[:200]
@@ -331,7 +401,7 @@ def stream_post(
 
     writing_user = _pick_persona(req.persona_id, persona_registry)
     messages = build_messages(req, writing_user)
-    for chunk in _make_llm(json_mode=False).stream(messages):
+    for chunk in _make_llm(json_mode=True).stream(messages):
         if chunk.content:
             yield chunk.content
 
