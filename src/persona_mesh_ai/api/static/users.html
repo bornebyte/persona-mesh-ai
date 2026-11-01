@@ -378,7 +378,8 @@
             line-height: 1.5;
             margin-bottom: 12px;
             border: 1px solid;
-            align-items: flex-start
+            align-items: flex-start;
+            white-space: pre-line
         }
 
         .alert-error {
@@ -519,6 +520,28 @@
         .hidden {
             display: none !important
         }
+
+        .bulk-import {
+            margin-top: 18px;
+            border-top: 1px solid var(--border);
+            padding-top: 14px;
+        }
+
+        .bulk-import summary {
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .bulk-import .bulk-help {
+            margin: 8px 0 12px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .bulk-import textarea {
+            min-height: 180px;
+        }
     </style>
 </head>
 
@@ -627,6 +650,25 @@
                         </div>
 
                     </form>
+
+                    <details class="bulk-import">
+                        <summary>Import multiple users from JSON</summary>
+                        <p class="bulk-help">Choose a JSON file or paste a JSON array. You can also use an object with a
+                            <code>users</code> or <code>personas</code> array. Include a unique <code>api_key</code> for each user.
+                            The import is all-or-nothing; a validation or duplicate error creates no users.</p>
+                        <div class="field">
+                            <label for="bulk-file">Upload JSON file</label>
+                            <input id="bulk-file" type="file" accept=".json,application/json" />
+                        </div>
+                        <div class="field">
+                            <label for="bulk-json">Or paste JSON data</label>
+                            <textarea id="bulk-json" class="code" autocomplete="off" spellcheck="false"
+                                placeholder='[{"id":"...","name":"...","role":"...","description":"...","relationship":"...","personality":"...","api_key":"..."}]'></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-primary" id="bulk-import-btn">Import users</button>
+                        </div>
+                    </details>
                 </div>
             </div>
 
@@ -654,6 +696,9 @@
 
             let editingUserId = null;
             let busy = false;
+            let bulkBusy = false;
+            const maxBulkUsers = 500;
+            const maxBulkBytes = 2 * 1024 * 1024;
 
             // ---------- Helpers ----------
             function toast(msg, type = "") {
@@ -673,6 +718,28 @@
                 div.style.cursor = "pointer";
                 div.addEventListener("click", () => div.remove());
                 alertsEl.appendChild(div);
+            }
+
+            function formatApiError(detail, fallback) {
+                if (typeof detail === "string") return detail;
+                if (detail && typeof detail === "object") {
+                    const errors = Array.isArray(detail) ? detail : detail.errors;
+                    const lines = Array.isArray(errors) ? errors.map(error => {
+                        const row = error.index ? `Row ${error.index}` : "";
+                        const field = error.field || (Array.isArray(error.loc) ? error.loc.slice(1).join(".") : "");
+                        const label = [row, field].filter(Boolean).join(" · ");
+                        const message = error.message || error.msg || "Invalid value";
+                        return label ? `${label}: ${message}` : message;
+                    }) : [];
+                    const message = Array.isArray(detail) ? "" : (detail.message || "");
+                    if (message && lines.length) {
+                        const omitted = detail.truncated ? "\nAdditional errors were omitted." : "";
+                        return `${message}\n${lines.join("\n")}${omitted}`;
+                    }
+                    if (message) return message;
+                    if (lines.length) return lines.join("\n");
+                }
+                return fallback;
             }
 
             function escapeHtml(s) {
@@ -828,7 +895,7 @@
             // ---------- Save (create or update) ----------
             async function saveUser(ev) {
                 ev.preventDefault();
-                if (busy) return;
+                if (busy || bulkBusy) return;
                 clearAlerts();
 
                 let payload;
@@ -862,8 +929,7 @@
                         let detail = "HTTP " + res.status;
                         try {
                             const body = await res.json();
-                            if (typeof body.detail === "string") detail = body.detail;
-                            else if (Array.isArray(body.detail)) detail = body.detail.map(e => `${(e.loc || []).join(".")}: ${e.msg}`).join("\n");
+                            detail = formatApiError(body.detail, detail);
                         } catch { }
                         throw new Error(detail);
                     }
@@ -892,9 +958,99 @@
                 }
             }
 
+            async function loadBulkJsonFile(ev) {
+                const file = ev.target.files && ev.target.files[0];
+                if (!file) return;
+                clearAlerts();
+                if (file.size > maxBulkBytes) {
+                    ev.target.value = "";
+                    showAlert("error", "JSON files must be 2 MB or smaller.");
+                    return;
+                }
+                try {
+                    $("bulk-json").value = await file.text();
+                } catch {
+                    showAlert("error", "Could not read that file. Try pasting the JSON instead.");
+                }
+            }
+
+            async function importUsersFromJson() {
+                if (bulkBusy || busy) return;
+                clearAlerts();
+
+                const jsonText = $("bulk-json").value.trim();
+                if (!jsonText) {
+                    showAlert("error", "Upload a JSON file or paste JSON data first.");
+                    return;
+                }
+                if (new Blob([jsonText]).size > maxBulkBytes) {
+                    showAlert("error", "JSON data must be 2 MB or smaller.");
+                    return;
+                }
+
+                let parsed;
+                try {
+                    parsed = JSON.parse(jsonText);
+                } catch (err) {
+                    showAlert("error", "Invalid JSON: " + err.message);
+                    return;
+                }
+
+                const users = Array.isArray(parsed)
+                    ? parsed
+                    : (parsed && Array.isArray(parsed.users)
+                        ? parsed.users
+                        : (parsed && Array.isArray(parsed.personas) ? parsed.personas : null));
+                if (!users) {
+                    showAlert("error", "Provide a JSON array or an object with a 'users' or 'personas' array.");
+                    return;
+                }
+                if (users.length === 0) {
+                    showAlert("error", "The users array cannot be empty.");
+                    return;
+                }
+                if (users.length > maxBulkUsers) {
+                    showAlert("error", `Import up to ${maxBulkUsers} users at a time.`);
+                    return;
+                }
+
+                bulkBusy = true;
+                const importButton = $("bulk-import-btn");
+                importButton.disabled = true;
+                importButton.textContent = "Importing…";
+                try {
+                    const res = await fetch("/api/v1/users/bulk", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Accept: "application/json" },
+                        body: JSON.stringify(parsed),
+                    });
+                    if (!res.ok) {
+                        let detail = "HTTP " + res.status;
+                        try {
+                            const body = await res.json();
+                            detail = formatApiError(body.detail, detail);
+                        } catch { }
+                        throw new Error(detail);
+                    }
+
+                    const result = await res.json();
+                    $("bulk-json").value = "";
+                    $("bulk-file").value = "";
+                    toast(`${result.created_count} users created`, "success");
+                    await loadUsers();
+                } catch (err) {
+                    showAlert("error", "Import failed: " + err.message);
+                    toast("Import failed", "error");
+                } finally {
+                    bulkBusy = false;
+                    importButton.disabled = false;
+                    importButton.textContent = "Import users";
+                }
+            }
+
             // ---------- Delete ----------
             async function deleteUser() {
-                if (!editingUserId || busy) return;
+                if (!editingUserId || busy || bulkBusy) return;
                 if (!confirm("Delete this user permanently? This cannot be undone.")) return;
 
                 busy = true;
@@ -947,6 +1103,8 @@
             form.addEventListener("submit", saveUser);
             $("delete-btn").addEventListener("click", deleteUser);
             $("copy-key-btn").addEventListener("click", copyApiKey);
+            $("bulk-file").addEventListener("change", loadBulkJsonFile);
+            $("bulk-import-btn").addEventListener("click", importUsersFromJson);
 
             // ---------- Init ----------
             (function init() {

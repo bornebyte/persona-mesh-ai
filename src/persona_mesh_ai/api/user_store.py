@@ -7,10 +7,11 @@ import os
 import re
 import sqlite3
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 DB_PATH = Path(os.getenv("PM_USERS_DB", "persona_mesh_users.db")).resolve()
 
@@ -28,7 +29,7 @@ def _is_api_key_digest(value: str) -> bool:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 @contextmanager
@@ -97,9 +98,7 @@ def init_db() -> None:
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_persona_id "
             "ON users(persona_id)"
         )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key)"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key)")
 
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -143,7 +142,7 @@ def get_user_by_api_key(api_key: str) -> dict[str, Any] | None:
     return _row_to_dict(row) if row else None
 
 
-def create_user(payload: dict[str, Any]) -> dict[str, Any]:
+def _normalize_user_payload(payload: dict[str, Any]) -> dict[str, str]:
     persona_id = str(payload.get("id") or "").strip()
     api_key = str(payload.get("api_key") or "").strip()
     fields = {
@@ -164,38 +163,71 @@ def create_user(payload: dict[str, Any]) -> dict[str, Any]:
         if not value:
             raise ValueError(f"{field} is required")
 
+    return {
+        "id": persona_id,
+        "api_key": _api_key_digest(api_key),
+        **fields,
+    }
+
+
+def create_users(payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Insert a batch atomically; any invalid row or conflict leaves no partial writes."""
+    if not payloads:
+        raise ValueError("At least one user is required")
+
+    normalized = [_normalize_user_payload(payload) for payload in payloads]
     now = _now()
     with _lock, _connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         try:
-            conn.execute(
-                """
-                INSERT INTO users (
-                    persona_id, api_key, name, role, description, relationship,
-                    personality, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    persona_id,
-                    _api_key_digest(api_key),
-                    fields["name"],
-                    fields["role"],
-                    fields["description"],
-                    fields["relationship"],
-                    fields["personality"],
-                    now,
-                    now,
-                ),
-            )
+            for user in normalized:
+                conn.execute(
+                    """
+                    INSERT INTO users (
+                        persona_id, api_key, name, role, description,
+                        relationship, personality, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        user["id"],
+                        user["api_key"],
+                        user["name"],
+                        user["role"],
+                        user["description"],
+                        user["relationship"],
+                        user["personality"],
+                        now,
+                        now,
+                    ),
+                )
+
+            created = [
+                _row_to_dict(
+                    conn.execute(
+                        "SELECT * FROM users WHERE persona_id = ?", (user["id"],)
+                    ).fetchone()
+                )
+                for user in normalized
+            ]
+            conn.execute("COMMIT")
         except sqlite3.IntegrityError as exc:
+            if conn.in_transaction:
+                conn.execute("ROLLBACK")
             if "persona_id" in str(exc):
                 raise ValueError("id already exists") from exc
             if "api_key" in str(exc):
                 raise ValueError("api_key already exists") from exc
             raise
+        except Exception:
+            if conn.in_transaction:
+                conn.execute("ROLLBACK")
+            raise
 
-    user = get_user(persona_id)
-    assert user is not None
-    return user
+    return created
+
+
+def create_user(payload: dict[str, Any]) -> dict[str, Any]:
+    return create_users([payload])[0]
 
 
 def update_user(user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
