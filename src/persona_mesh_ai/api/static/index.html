@@ -762,6 +762,195 @@
         details.config>div {
             padding-top: 8px;
         }
+
+        /* ---------- Dev.to publish result ---------- */
+        .publish-card {
+            margin-top: 8px;
+        }
+
+        .result-hero {
+            padding: 18px 20px;
+            border-radius: var(--radius);
+            border: 1px solid;
+            margin-bottom: 16px;
+        }
+
+        .result-hero.success {
+            background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%);
+            border-color: #a7f3d0;
+        }
+
+        .result-hero.error {
+            background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%);
+            border-color: #fecaca;
+        }
+
+        .result-hero.skipped {
+            background: linear-gradient(135deg, #fffbeb 0%, #fefce8 100%);
+            border-color: #fde68a;
+        }
+
+        .result-hero h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-hero .hero-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+            word-break: break-word;
+        }
+
+        .result-hero a.hero-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 7px 14px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: var(--radius-sm);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .result-hero a.hero-link:hover {
+            background: var(--accent-hover);
+        }
+
+        .result-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .result-stat {
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+        }
+
+        .result-stat .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-faint);
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .result-stat .stat-value {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .result-stat.success .stat-value {
+            color: var(--success);
+        }
+
+        .result-stat.error .stat-value {
+            color: var(--danger);
+        }
+
+        .result-stat.warning .stat-value {
+            color: var(--warning);
+        }
+
+        .result-raw {
+            margin-top: 8px;
+        }
+
+        .result-raw summary {
+            cursor: pointer;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: var(--text-muted);
+            padding: 6px 0;
+            user-select: none;
+        }
+
+        .result-raw summary:hover {
+            color: var(--text);
+        }
+
+        .result-raw pre {
+            margin-top: 6px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            font-family: var(--mono);
+            font-size: 12.5px;
+            line-height: 1.6;
+            max-height: 340px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .publish-status.success {
+            color: var(--success);
+            border-color: #a7f3d0;
+            background: var(--success-soft);
+        }
+
+        .publish-status.error {
+            color: var(--danger);
+            border-color: #fecaca;
+            background: var(--danger-soft);
+        }
+
+        .publish-status.skipped {
+            color: var(--warning);
+            border-color: #fde68a;
+            background: var(--warning-soft);
+        }
+
+        .publish-status.busy .dot {
+            background: var(--warning);
+            animation: pulse 1.2s infinite;
+        }
+
+        .publish-check-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+        }
+
+        .publish-check-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .publish-check-row label {
+            margin: 0;
+            font-weight: 500;
+            font-size: 13.5px;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .publish-check-row .check-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: 4px;
+        }
     </style>
 </head>
 
@@ -916,6 +1105,52 @@
             </div>
 
         </div>
+
+        <!-- ============ Publish to Dev.to ============ -->
+        <div class="card publish-card" id="publish-card" style="margin-top: 20px;">
+            <div class="card-header">
+                <div class="card-title">Publish to Dev.to</div>
+                <span class="status" id="publish-status">
+                    <span class="dot"></span>
+                    <span id="publish-status-text">Ready</span>
+                </span>
+            </div>
+            <div class="card-body">
+
+                <div class="publish-check-row">
+                    <input type="checkbox" id="publish-check" />
+                    <label for="publish-check">
+                        Publish this post to Dev.to
+                        <span class="check-hint">— uncheck to save as draft instead</span>
+                    </label>
+                </div>
+
+                <div class="row">
+                    <div class="field">
+                        <label for="devto-account">Dev.to account</label>
+                        <select id="devto-account">
+                            <option value="default">Default account</option>
+                        </select>
+                    </div>
+                    <div class="field" style="display: flex; align-items: flex-end;">
+                        <button type="button" class="btn btn-ghost btn-sm" id="refresh-accounts"
+                            style="width: 100%;">
+                            Refresh accounts
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-actions" style="border-top: none; padding-top: 0; margin-top: 8px;">
+                    <button type="button" class="btn btn-primary" id="publish-btn" disabled
+                        style="width: 100%;">
+                        Publish to Dev.to
+                    </button>
+                </div>
+
+                <div id="publish-result" class="hidden" style="margin-top: 16px;"></div>
+            </div>
+        </div>
+
     </div>
 
     <div class="toast-container" id="toast-container"></div>
@@ -924,7 +1159,8 @@
         /* =====================================================================
            Persona Mesh AI — frontend
            Handles: form validation, persona loading, health check, non-streaming
-           generation, streaming, error display, markdown rendering, clipboard.
+           generation, streaming, error display, markdown rendering, clipboard,
+           and Dev.to publishing.
            ===================================================================== */
 
         (function () {
@@ -947,9 +1183,17 @@
             const personaSelect = $("persona_id");
             const toastContainer = $("toast-container");
 
+            const publishCheck = $("publish-check");
+            const devtoAccount = $("devto-account");
+            const publishBtn = $("publish-btn");
+            const publishStatus = $("publish-status");
+            const publishStatusText = $("publish-status-text");
+            const publishResult = $("publish-result");
+            const refreshAccountsBtn = $("refresh-accounts");
+
             let currentView = "rendered";
             let currentResult = null;   // last successful result object
-            let currentRawText = "";    // raw text for copy
+                        let currentRawText = "";    // raw text for copy
             let busy = false;
             let abortController = null;
 
@@ -982,7 +1226,6 @@
                 streamBtn.disabled = value;
                 resetBtn.disabled = value;
                 form.querySelectorAll("input, textarea, select").forEach((el) => {
-                    // Don't disable the API base field during generation
                     if (el === apiBaseInput) return;
                     el.disabled = value;
                 });
@@ -990,6 +1233,12 @@
                 submitBtn.textContent = value && mode !== "stream" ? "Generating…" : "Generate Post";
                 streamBtn.textContent = value && mode === "stream" ? "Streaming…" : "Stream";
                 streamingInd.classList.toggle("hidden", !(value && mode === "stream"));
+
+                if (value) {
+                    publishBtn.disabled = true;
+                } else {
+                    publishBtn.disabled = !currentResult;
+                }
             }
 
             function clearAlerts() {
@@ -1019,7 +1268,6 @@
                 wrap.querySelector(".alert-message").textContent = message;
                 if (detail) wrap.querySelector(".alert-detail").textContent = detail;
 
-                // Dismiss on click
                 wrap.style.cursor = "pointer";
                 wrap.addEventListener("click", () => wrap.remove());
 
@@ -1036,13 +1284,10 @@
             }
 
             // ---------- Minimal markdown renderer ----------
-            // Safe subset — no raw HTML passthrough. Handles headings, bold, italic,
-            // inline code, fenced code, lists, links, blockquotes, hr, paragraphs.
             function renderMarkdown(md) {
                 if (!md) return "";
                 let text = String(md).replace(/\r\n/g, "\n");
 
-                // Extract fenced code blocks first
                 const codeBlocks = [];
                 text = text.replace(/```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
                     const idx = codeBlocks.length;
@@ -1050,10 +1295,8 @@
                     return `\u0000CODE${idx}\u0000`;
                 });
 
-                // Escape everything
                 text = escapeHtml(text);
 
-                // Headings
                 text = text.replace(/^###### (.*)$/gm, "<h6>$1</h6>");
                 text = text.replace(/^##### (.*)$/gm, "<h5>$1</h5>");
                 text = text.replace(/^#### (.*)$/gm, "<h4>$1</h4>");
@@ -1061,26 +1304,19 @@
                 text = text.replace(/^## (.*)$/gm, "<h2>$1</h2>");
                 text = text.replace(/^# (.*)$/gm, "<h1>$1</h1>");
 
-                // Horizontal rule
                 text = text.replace(/^---+$/gm, "<hr/>");
-
-                // Blockquotes
                 text = text.replace(/^&gt; (.*)$/gm, "<blockquote>$1</blockquote>");
 
-                // Bold / italic / inline code
                 text = text.replace(/`([^`\n]+)`/g, "<code>$1</code>");
                 text = text.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
                 text = text.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
 
-                // Links — only http(s)
                 text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
                     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-                // Auto-link bare URLs
                 text = text.replace(/(^|\s)(https?:\/\/[^\s<]+)/g,
                     '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
 
-                // Lists — group consecutive li lines
                 const lines = text.split("\n");
                 const out = [];
                 let inUl = false;
@@ -1106,19 +1342,16 @@
                 if (inOl) out.push("</ol>");
                 text = out.join("\n");
 
-                // Paragraphs — wrap runs of non-block text
                 text = text
                     .split(/\n{2,}/)
                     .map((block) => {
                         const trimmed = block.trim();
                         if (!trimmed) return "";
-                        // Skip blocks that are already HTML block-level elements
                         if (/^<(h[1-6]|ul|ol|pre|blockquote|hr|div|p|table)\b/.test(trimmed)) return trimmed;
                         return "<p>" + trimmed.replace(/\n/g, "<br/>") + "</p>";
                     })
                     .join("\n");
 
-                // Restore code blocks (already escaped)
                 text = text.replace(/\u0000CODE(\d+)\u0000/g, (_, idx) => {
                     const { lang, code } = codeBlocks[parseInt(idx, 10)];
                     const cls = lang ? ` class="language-${escapeHtml(lang)}"` : "";
@@ -1173,7 +1406,6 @@
                     nameField.classList.remove("invalid");
                 }
 
-                // Remove invalid class as soon as user types
                 $("tp-name").addEventListener("input", () => {
                     if ($("tp-name").value.trim().length >= 2) {
                         nameField.classList.remove("invalid");
@@ -1224,7 +1456,6 @@
                     const list = await res.json();
                     if (!Array.isArray(list)) throw new Error("Unexpected response");
 
-                    // Keep "Auto (random)" first
                     const currentVal = personaSelect.value;
                     personaSelect.innerHTML = '<option value="">Auto (random)</option>';
                     list.forEach((p) => {
@@ -1240,7 +1471,49 @@
                     }
                 } catch (err) {
                     console.warn("Could not load personas:", err);
-                    // Non-fatal — form still works with random persona
+                }
+            }
+
+            // ---------- Load Dev.to accounts ----------
+            async function loadDevToAccounts() {
+                try {
+                    const res = await fetch(apiBase() + "/api/v1/devto/accounts", {
+                        headers: { Accept: "application/json" },
+                    });
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    const list = await res.json();
+                    const current = devtoAccount.value;
+                    devtoAccount.innerHTML = "";
+
+                    if (!Array.isArray(list) || list.length === 0) {
+                        const opt = document.createElement("option");
+                        opt.value = "";
+                        opt.textContent = "No accounts configured";
+                        devtoAccount.appendChild(opt);
+                        devtoAccount.disabled = true;
+                        publishBtn.disabled = true;
+                        return;
+                    }
+
+                    devtoAccount.disabled = false;
+                    list.forEach((a) => {
+                        const opt = document.createElement("option");
+                        opt.value = a.id;
+                        opt.textContent = a.label || a.id;
+                        devtoAccount.appendChild(opt);
+                    });
+                    if ([...devtoAccount.options].some((o) => o.value === current)) {
+                        devtoAccount.value = current;
+                    }
+                    publishBtn.disabled = !currentResult;
+                } catch (err) {
+                    console.warn("Could not load Dev.to accounts:", err);
+                    const opt = document.createElement("option");
+                    opt.value = "";
+                    opt.textContent = "Could not load accounts";
+                    devtoAccount.innerHTML = "";
+                    devtoAccount.appendChild(opt);
+                    devtoAccount.disabled = true;
                 }
             }
 
@@ -1255,6 +1528,7 @@
                 currentResult = result;
                 currentRawText = rawText || JSON.stringify(result, null, 2);
                 copyBtn.disabled = false;
+                publishBtn.disabled = false;
 
                 if (currentView === "raw") {
                     renderRaw();
@@ -1267,7 +1541,6 @@
                 outputBody.innerHTML = "";
                 if (!currentResult) return showEmpty();
 
-                // Metadata bar
                 const meta = document.createElement("div");
                 meta.className = "meta-grid";
                 const r = currentResult;
@@ -1295,7 +1568,6 @@
                     meta.appendChild(item);
                 });
 
-                // Tags
                 if (Array.isArray(r.tags) && r.tags.length) {
                     const tagItem = document.createElement("div");
                     tagItem.className = "meta-item";
@@ -1318,7 +1590,6 @@
 
                 outputBody.appendChild(meta);
 
-                // Title + body
                 const content = document.createElement("div");
                 content.className = "card-body";
                 if (r.title) {
@@ -1357,7 +1628,7 @@
                     textBody = await res.text();
                     body = textBody ? JSON.parse(textBody) : null;
                 } catch {
-                    // Not JSON — use raw text
+                    // Not JSON
                 }
 
                 const status = res.status;
@@ -1365,27 +1636,20 @@
                 let message = `The server returned HTTP ${status}.`;
                 let detail = null;
 
-                // FastAPI validation error shape: { detail: [ {loc, msg, type}, ... ] }
                 if (body && Array.isArray(body.detail)) {
                     title = "Invalid request";
                     message = "Some fields were rejected by the server.";
                     detail = body.detail
                         .map((e) => `${(e.loc || []).join(".")}: ${e.msg}`)
                         .join("\n");
-                }
-                // Custom error object shape: { detail: { error, reason } }
-                else if (body && body.detail && typeof body.detail === "object") {
+                } else if (body && body.detail && typeof body.detail === "object") {
                     title = "Cannot generate";
                     message = body.detail.error || "Request rejected";
                     detail = body.detail.reason || null;
-                }
-                // Simple detail string
-                else if (body && typeof body.detail === "string") {
+                } else if (body && typeof body.detail === "string") {
                     title = "Request failed";
                     message = body.detail;
-                }
-                // Bare text body
-                else if (textBody && !body) {
+                } else if (textBody && !body) {
                     detail = textBody.slice(0, 500);
                 }
 
@@ -1406,7 +1670,6 @@
                 abortController = new AbortController();
                 const timer = setTimeout(() => abortController?.abort(), DEFAULT_TIMEOUT_MS);
 
-                // Show loading skeleton
                 outputBody.innerHTML = "";
                 const skel = document.createElement("div");
                 skel.style.padding = "10px 0";
@@ -1453,7 +1716,6 @@
                         return;
                     }
 
-                    // Model-signalled error (should be rare — 422 is normally used)
                     if (data && data.error) {
                         showAlert(
                             "warning",
@@ -1465,7 +1727,6 @@
                         return;
                     }
 
-                    // Sanity check required fields
                     if (!data || typeof data !== "object" || !data.body_markdown) {
                         showAlert(
                             "warning",
@@ -1473,7 +1734,6 @@
                             "The response did not include a body. Showing raw output.",
                             JSON.stringify(data, null, 2).slice(0, 800)
                         );
-                        // Still show it — don't break
                     }
 
                     renderResult(data, JSON.stringify(data, null, 2));
@@ -1520,7 +1780,6 @@
                 abortController = new AbortController();
                 const timer = setTimeout(() => abortController?.abort(), DEFAULT_TIMEOUT_MS);
 
-                // Prepare output area
                 outputBody.innerHTML = "";
                 const content = document.createElement("div");
                 content.className = "card-body";
@@ -1573,7 +1832,6 @@
                         accumulated += chunk;
                         received = true;
 
-                        // Detect the server-side "[error: ...]" prefix
                         if (accumulated.startsWith("[error:") && accumulated.trim().endsWith("]")) {
                             const errText = accumulated.trim();
                             showAlert("warning", "Streaming error", errText.replace(/^\[error:\s*|\]$/g, ""));
@@ -1581,7 +1839,6 @@
                         }
 
                         md.innerHTML = renderMarkdown(accumulated);
-                        // Keep scroll at bottom while streaming
                         outputBody.scrollTop = outputBody.scrollHeight;
                     }
 
@@ -1591,8 +1848,6 @@
                         return;
                     }
 
-                    // Streaming gives us raw text, not JSON — build a minimal result
-                    // so the Raw JSON tab still works.
                     const fallback = {
                         platform: $("platform").value,
                         title: null,
@@ -1601,11 +1856,13 @@
                         target_links_included: null,
                         word_count: accumulated.split(/\s+/).filter(Boolean).length,
                         writing_user: null,
+                        tags: [],
                         _streamed: true,
                     };
                     currentResult = fallback;
                     currentRawText = accumulated;
                     copyBtn.disabled = false;
+                    publishBtn.disabled = false;
 
                     toast("Stream complete", "success");
                 } catch (err) {
@@ -1629,17 +1886,161 @@
                 }
             }
 
+            // ---------- Dev.to publish ----------
+            function setPublishStatus(kind, text) {
+                publishStatus.className = "status publish-status " + kind;
+                publishStatusText.textContent = text;
+            }
+
+            function renderPublishResult(result) {
+                publishResult.classList.remove("hidden");
+                publishResult.innerHTML = "";
+
+                const kind = result.status === "success" ? "success"
+                    : result.status === "skipped" ? "skipped" : "error";
+
+                const hero = document.createElement("div");
+                hero.className = "result-hero " + kind;
+                const icon = { success: "✓", error: "✕", skipped: "⚠" }[kind];
+                const titleMap = {
+                    success: "Post published to Dev.to",
+                    error: "Dev.to rejected the request",
+                    skipped: "Not published",
+                };
+                hero.innerHTML = `
+                    <h3><span>${icon}</span> ${titleMap[kind]}</h3>
+                    <div class="hero-sub"></div>
+                `;
+                hero.querySelector(".hero-sub").textContent =
+                    result.reason || (result.published ? "Live on Dev.to" : "Saved as draft");
+
+                if (result.article_url) {
+                    const a = document.createElement("a");
+                    a.className = "hero-link";
+                    a.href = result.article_url;
+                    a.target = "_blank";
+                    a.rel = "noopener noreferrer";
+                    a.textContent = "Open on Dev.to ↗";
+                    hero.appendChild(a);
+                }
+                publishResult.appendChild(hero);
+
+                const stats = document.createElement("div");
+                stats.className = "result-stats";
+                const items = [
+                    ["Status", result.status, result.status],
+                    ["Account", result.account_id || "—", ""],
+                    ["Visibility", result.published ? "Published" : "Draft", ""],
+                    ["HTTP", result.http_status != null ? String(result.http_status) : "—", ""],
+                    ["Article ID", result.article_id != null ? String(result.article_id) : "—", ""],
+                    ["Title", result.title || "—", ""],
+                ];
+                items.forEach(([label, value, cls]) => {
+                    const el = document.createElement("div");
+                    el.className = "result-stat " + (cls || "");
+                    const l = document.createElement("div");
+                    l.className = "stat-label";
+                    l.textContent = label;
+                    const v = document.createElement("div");
+                    v.className = "stat-value";
+                    v.textContent = value;
+                    el.appendChild(l);
+                    el.appendChild(v);
+                    stats.appendChild(el);
+                });
+                publishResult.appendChild(stats);
+
+                if (result.raw != null) {
+                    const details = document.createElement("details");
+                    details.className = "result-raw";
+                    const summary = document.createElement("summary");
+                    summary.textContent = "Raw API response";
+                    const pre = document.createElement("pre");
+                    pre.textContent = typeof result.raw === "string"
+                        ? result.raw
+                        : JSON.stringify(result.raw, null, 2);
+                    details.appendChild(summary);
+                    details.appendChild(pre);
+                    publishResult.appendChild(details);
+                }
+
+                setPublishStatus(kind, kind.charAt(0).toUpperCase() + kind.slice(1));
+            }
+
+            async function publishToDevTo() {
+                if (!currentResult) {
+                    toast("Generate a post first", "error");
+                    return;
+                }
+                const wantsPublish = publishCheck.checked;
+                const accountId = devtoAccount.value || "default";
+
+                publishBtn.disabled = true;
+                publishBtn.textContent = wantsPublish ? "Publishing…" : "Saving draft…";
+                setPublishStatus("busy", wantsPublish ? "Publishing…" : "Saving draft…");
+
+                try {
+                    const res = await fetch(apiBase() + "/api/v1/devto/publish", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Accept: "application/json",
+                        },
+                        body: JSON.stringify({
+                            account_id: accountId,
+                            publish: wantsPublish,
+                            post: {
+                                title: currentResult.title || "",
+                                body_markdown: currentResult.body_markdown || "",
+                                tags: currentResult.tags || [],
+                            },
+                        }),
+                    });
+
+                    if (!res.ok) {
+                        const { title, message, detail } = await parseErrorResponse(res);
+                        showAlert("error", title, message, detail);
+                        renderPublishResult({
+                            status: "error",
+                            account_id: accountId,
+                            reason: message,
+                            http_status: res.status,
+                            raw: detail,
+                        });
+                        toast("Dev.to publish failed", "error");
+                        return;
+                    }
+
+                    const data = await res.json();
+                    renderPublishResult(data);
+
+                    if (data.status === "success") toast("Dev.to post created", "success");
+                    else if (data.status === "skipped") toast("Publishing skipped", "");
+                    else toast("Dev.to returned an error", "error");
+                } catch (err) {
+                    showAlert("error", "Publish failed", String(err && err.message || err));
+                    renderPublishResult({
+                        status: "error",
+                        account_id: accountId,
+                        reason: String(err && err.message || err),
+                        raw: null,
+                    });
+                    toast("Publish failed", "error");
+                } finally {
+                    publishBtn.disabled = !currentResult;
+                    publishBtn.textContent = "Publish to Dev.to";
+                }
+            }
+
             // ---------- Copy to clipboard ----------
             async function copyOutput() {
                 if (!currentRawText && !currentResult) return;
-                const text = currentRawText ||
-                    JSON.stringify(currentResult, null, 2);
+                const text = currentRawText || JSON.stringify(currentResult, null, 2);
 
                 try {
                     if (navigator.clipboard && window.isSecureContext) {
                         await navigator.clipboard.writeText(text);
                     } else {
-                        // Fallback for non-HTTPS contexts
                         const ta = document.createElement("textarea");
                         ta.value = text;
                         ta.style.position = "fixed";
@@ -1655,7 +2056,7 @@
                 }
             }
 
-            // ---------- Reset form ----------
+            // ---------- Reset ----------
             function resetForm() {
                 form.reset();
                 $("field-name").classList.remove("invalid");
@@ -1664,6 +2065,10 @@
                 currentResult = null;
                 currentRawText = "";
                 copyBtn.disabled = true;
+                publishBtn.disabled = true;
+                publishResult.classList.add("hidden");
+                publishResult.innerHTML = "";
+                setPublishStatus("", "Ready");
                 toast("Form reset");
             }
 
@@ -1687,14 +2092,15 @@
             streamBtn.addEventListener("click", stream);
             resetBtn.addEventListener("click", resetForm);
             copyBtn.addEventListener("click", copyOutput);
+            publishBtn.addEventListener("click", publishToDevTo);
+            refreshAccountsBtn.addEventListener("click", loadDevToAccounts);
 
-            // Re-check health when API base changes
             apiBaseInput.addEventListener("change", () => {
                 loadPersonas();
+                loadDevToAccounts();
                 checkHealth();
             });
 
-            // Warn if the user closes mid-request
             window.addEventListener("beforeunload", (e) => {
                 if (busy) {
                     e.preventDefault();
@@ -1704,14 +2110,10 @@
 
             // ---------- Init ----------
             (function init() {
-                // Show empty state initially
                 showEmpty();
-
-                // Fetch health + personas in parallel
                 checkHealth();
                 loadPersonas();
-
-                // Re-check health every 30s
+                loadDevToAccounts();
                 setInterval(checkHealth, 30000);
             })();
         })();

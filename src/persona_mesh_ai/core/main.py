@@ -344,37 +344,110 @@ def list_personas() -> list[dict[str, Any]]:
         }
         for p in personas
     ]
+# ---------------------------------------------------------------------------
+# Dev.to publishing
+# ---------------------------------------------------------------------------
 
-def post_to_dev_to(post: dict[str, Any]) -> str:
-    """Stub for future Dev.to integration."""
-    logger.info("Posting to Dev.to: %r", post)
+DEV_TO_ACCOUNTS: dict[str, str] = {
+    k: v for k, v in os.environ.items() if k.startswith("DEV_TO_API_KEY")
+}
+# Supports DEV_TO_API_KEY, DEV_TO_API_KEY_1, DEV_TO_API_KEY_2, ...
 
-    DEV_TO_API_KEY = os.getenv("DEV_TO_API_KEY")
-    if not DEV_TO_API_KEY:
-        logger.warning("DEV_TO_API_KEY not set; skipping actual post.")
-        return {"status": "skipped", "reason": "DEV_TO_API_KEY not set"}
-    
-    url = "https://dev.to/api/articles"
-    headers = {
-        "Content-Type": "application/json",
-        "api-key": DEV_TO_API_KEY
-    }
+
+class DevToPublishRequest(BaseModel):
+    account_id: str = "default"
+    publish: bool = False
+    post: dict[str, Any]
+
+
+def list_devto_accounts() -> list[dict[str, str]]:
+    """Expose account ids (never the keys) so the UI can render a selector."""
+    return [
+        {
+            "id": "default" if k == "DEV_TO_API_KEY" else k.replace("DEV_TO_API_KEY_", ""),
+            "label": "Default account" if k == "DEV_TO_API_KEY" else f"Account {k.replace('DEV_TO_API_KEY_', '')}",
+        }
+        for k in DEV_TO_ACCOUNTS
+    ]
+
+
+def _resolve_devto_key(account_id: str) -> str | None:
+    if account_id == "default":
+        return DEV_TO_ACCOUNTS.get("DEV_TO_API_KEY")
+    return DEV_TO_ACCOUNTS.get(f"DEV_TO_API_KEY_{account_id}")
+
+
+def post_to_dev_to(post: dict[str, Any], account_id: str = "default", publish: bool = False) -> dict[str, Any]:
+    """Publish (or draft) a post to Dev.to. Returns a structured result."""
+    api_key = _resolve_devto_key(account_id)
+    if not api_key:
+        logger.warning("No Dev.to API key for account '%s'", account_id)
+        return {
+            "status": "skipped",
+            "account_id": account_id,
+            "reason": f"No API key configured for account '{account_id}'",
+            "http_status": None,
+            "article_url": None,
+            "raw": None,
+        }
 
     payload = {
         "article": {
-            "title": post['title'],
-            "published": True,  # Creates a draft
-            "body_markdown": post['body_markdown'],
-            "tags": post['tags']
+            "title": post.get("title", "Untitled"),
+            "published": bool(publish),
+            "body_markdown": post.get("body_markdown", ""),
+            "tags": (post.get("tags") or [])[:4],  # Dev.to max 4 tags
+            "canonical_url": post.get("canonical_url") or None,
         }
     }
+    payload["article"] = {k: v for k, v in payload["article"].items() if v is not None}
 
-    response = requests.post(url, json=payload, headers=headers)
+    try:
+        resp = requests.post(
+            "https://dev.to/api/articles",
+            json=payload,
+            headers={
+                "Content-Type": "application/json",
+                "api-key": api_key,
+                "Accept": "application/vnd.forem.api-v1+json",
+            },
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        logger.exception("Dev.to network error")
+        return {
+            "status": "error",
+            "account_id": account_id,
+            "reason": f"Network error: {exc}",
+            "http_status": None,
+            "article_url": None,
+            "raw": None,
+        }
 
-    if response.status_code == 201:
-        print("Success! Post created.")
-        print("Article URL:", response.json().get("url"))
-        return {"status": "success", "url": response.json().get("url")}
-    else:
-        print(f"Failed with status code {response.status_code}: {response.text}")
-        return {"status": "error", "code": response.status_code, "message": response.text}
+    try:
+        body = resp.json()
+    except ValueError:
+        body = {"text": resp.text[:1000]}
+
+    if resp.status_code in (200, 201):
+        logger.info("Dev.to post created: %s", body.get("url"))
+        return {
+            "status": "success",
+            "account_id": account_id,
+            "published": bool(publish),
+            "article_url": body.get("url"),
+            "article_id": body.get("id"),
+            "title": body.get("title"),
+            "http_status": resp.status_code,
+            "raw": body,
+        }
+
+    logger.warning("Dev.to post failed (%s): %s", resp.status_code, resp.text[:300])
+    return {
+        "status": "error",
+        "account_id": account_id,
+        "reason": body.get("error") or body.get("message") or f"HTTP {resp.status_code}",
+        "http_status": resp.status_code,
+        "article_url": None,
+        "raw": body,
+    }

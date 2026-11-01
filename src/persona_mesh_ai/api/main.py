@@ -12,6 +12,18 @@ from fastapi.responses import StreamingResponse
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
+
+from persona_mesh_ai.core.main import (
+    GenerateRequest,
+    generate_post,
+    list_personas,
+    stream_post,
+    DevToPublishRequest,
+    list_devto_accounts,
+    post_to_dev_to,
+)
+
+
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 
@@ -86,3 +98,32 @@ def chat_stream(request: GenerateRequest) -> StreamingResponse:
             yield f"\n[stream error: {exc}]"
 
     return StreamingResponse(_gen(), media_type="text/plain")
+
+
+
+@app.get("/api/v1/devto/accounts")
+async def devto_accounts() -> list[dict[str, str]]:
+    """List configured Dev.to accounts (ids only)."""
+    return list_devto_accounts()
+
+
+@app.post("/api/v1/devto/publish")
+async def devto_publish(request: DevToPublishRequest) -> dict[str, Any]:
+    if not request.publish:
+        return {
+            "status": "skipped",
+            "account_id": request.account_id,
+            "reason": "Publishing was not requested (publish=false).",
+            "http_status": None,
+            "article_url": None,
+            "raw": None,
+        }
+    try:
+        return post_to_dev_to(
+            request.post,
+            account_id=request.account_id,
+            publish=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Dev.to publish failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
