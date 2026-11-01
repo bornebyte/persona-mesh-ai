@@ -15,7 +15,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from persona_mesh_ai.api import generation_store, user_store
+from persona_mesh_ai.api import generation_store, publishing_store, user_store
 from persona_mesh_ai.api.user_routes import router as user_router
 from persona_mesh_ai.core.main import (
     DevToPublishRequest,
@@ -39,6 +39,8 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     user_store.init_db()
     generation_store.init_db()
+    publishing_store.init_db()
+    publishing_store.sync_environment_accounts(list_devto_accounts())
     yield
 
 
@@ -278,28 +280,99 @@ def get_generation(generation_id: int) -> dict[str, Any]:
 
 
 @app.get("/api/v1/devto/accounts")
-async def devto_accounts() -> list[dict[str, str]]:
-    """List configured Dev.to accounts (ids only)."""
-    return list_devto_accounts()
+def devto_accounts() -> list[dict[str, Any]]:
+    """List publishing account metadata persisted in SQLite."""
+    try:
+        return publishing_store.list_accounts()
+    except sqlite3.Error as exc:
+        logger.exception("Could not load publishing accounts")
+        raise HTTPException(
+            status_code=503, detail="Could not load publishing accounts"
+        ) from exc
 
 
 @app.post("/api/v1/devto/publish")
 async def devto_publish(request: DevToPublishRequest) -> dict[str, Any]:
-    if not request.publish:
-        return {
-            "status": "skipped",
-            "account_id": request.account_id,
-            "reason": "Publishing was not requested (publish=false).",
-            "http_status": None,
-            "article_url": None,
-            "raw": None,
-        }
-    try:
-        return post_to_dev_to(
-            request.post,
-            account_id=request.account_id,
-            publish=True,
+    account_ids = list(
+        dict.fromkeys(
+            request.account_ids
+            if request.account_ids is not None
+            else [request.account_id or "default"]
         )
-    except Exception as exc:
-        logger.exception("Dev.to publish failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    )
+    if not account_ids:
+        raise HTTPException(status_code=422, detail="Select at least one account")
+
+    results: list[dict[str, Any]] = []
+    for account_id in account_ids:
+        try:
+            account = publishing_store.get_account(account_id)
+        except sqlite3.Error as exc:
+            logger.exception("Could not load publishing account %s", account_id)
+            raise HTTPException(
+                status_code=503, detail="Could not load publishing accounts"
+            ) from exc
+
+        if account is None:
+            results.append(
+                {
+                    "status": "error",
+                    "account_id": account_id,
+                    "reason": "Account was not found in the database.",
+                    "http_status": None,
+                    "article_url": None,
+                    "raw": None,
+                }
+            )
+        elif not account["configured"]:
+            results.append(
+                {
+                    "status": "error",
+                    "account_id": account_id,
+                    "reason": "No API key is configured for this account.",
+                    "http_status": None,
+                    "article_url": None,
+                    "raw": None,
+                }
+            )
+        else:
+            try:
+                results.append(
+                    post_to_dev_to(
+                        request.post,
+                        account_id=account_id,
+                        publish=request.publish,
+                    )
+                )
+            except Exception:
+                logger.exception("Dev.to publish failed for account %s", account_id)
+                results.append(
+                    {
+                        "status": "error",
+                        "account_id": account_id,
+                        "reason": "Publishing failed unexpectedly.",
+                        "http_status": None,
+                        "article_url": None,
+                        "raw": None,
+                    }
+                )
+
+    if len(results) == 1:
+        return results[0]
+
+    statuses = [result["status"] for result in results]
+    if all(status == "success" for status in statuses):
+        overall_status = "success"
+    elif all(status == "skipped" for status in statuses):
+        overall_status = "skipped"
+    elif "success" in statuses:
+        overall_status = "partial"
+    else:
+        overall_status = "error"
+
+    return {
+        "status": overall_status,
+        "results": results,
+        "success_count": statuses.count("success"),
+        "error_count": statuses.count("error"),
+    }

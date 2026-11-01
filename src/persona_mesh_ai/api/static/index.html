@@ -805,6 +805,33 @@
             border-color: #fde68a;
         }
 
+        .result-hero.partial {
+            background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%);
+            border-color: #fcd34d;
+        }
+
+        .publish-outcome {
+            min-width: 0;
+            padding: 16px;
+            margin-top: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+        }
+
+        .publish-outcome h4 {
+            margin: 0 0 12px;
+            font-size: 14px;
+            overflow-wrap: anywhere;
+        }
+
+        .publish-reason {
+            margin: 4px 0 0;
+            color: var(--danger);
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
         .result-hero h3 {
             font-size: 15px;
             font-weight: 600;
@@ -820,7 +847,8 @@
             word-break: break-word;
         }
 
-        .result-hero a.hero-link {
+        .result-hero a.hero-link,
+        .publish-outcome a.hero-link {
             display: inline-block;
             margin-top: 10px;
             padding: 7px 14px;
@@ -832,7 +860,8 @@
             font-size: 13px;
         }
 
-        .result-hero a.hero-link:hover {
+        .result-hero a.hero-link:hover,
+        .publish-outcome a.hero-link:hover {
             background: var(--accent-hover);
         }
 
@@ -928,6 +957,12 @@
             background: var(--warning-soft);
         }
 
+        .publish-status.partial {
+            color: #92400e;
+            border-color: #fcd34d;
+            background: #fffbeb;
+        }
+
         .publish-status.busy .dot {
             background: var(--warning);
             animation: pulse 1.2s infinite;
@@ -965,6 +1000,37 @@
             color: var(--text-muted);
             font-weight: 400;
             margin-left: 4px;
+        }
+
+        .account-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .account-choice {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 100%;
+            padding: 8px 10px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: 12.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .account-choice input {
+            flex: 0 0 auto;
+            margin: 0;
+            accent-color: var(--accent);
+        }
+
+        .account-choice.disabled {
+            color: var(--text-muted);
+            opacity: 0.7;
         }
 
         .history-card {
@@ -1377,10 +1443,11 @@
 
                 <div class="row">
                     <div class="field">
-                        <label for="devto-account">Dev.to account</label>
-                        <select id="devto-account">
-                            <option value="default">Default account</option>
-                        </select>
+                        <label>Dev.to accounts <span class="hint">(select one or more)</span></label>
+                        <div id="devto-accounts" class="account-list" aria-live="polite">
+                            <div class="field-note">Loading accounts…</div>
+                        </div>
+                        <div id="devto-accounts-empty" class="field-note hidden"></div>
                     </div>
                     <div class="field" style="display: flex; align-items: flex-end;">
                         <button type="button" class="btn btn-ghost btn-sm" id="refresh-accounts"
@@ -1434,7 +1501,8 @@
             const toastContainer = $("toast-container");
 
             const publishCheck = $("publish-check");
-            const devtoAccount = $("devto-account");
+            const devtoAccountsList = $("devto-accounts");
+            const devtoAccountsEmpty = $("devto-accounts-empty");
             const publishBtn = $("publish-btn");
             const publishStatus = $("publish-status");
             const publishStatusText = $("publish-status-text");
@@ -1457,6 +1525,7 @@
             let historyRefreshPending = false;
             let selectedHistoryId = null;
             let busy = false;
+            let publishing = false;
             let abortController = null;
 
             // ---------- Config ----------
@@ -1496,11 +1565,16 @@
                 streamBtn.textContent = value && mode === "stream" ? "Streaming…" : "Stream";
                 streamingInd.classList.toggle("hidden", !(value && mode === "stream"));
 
-                if (value) {
-                    publishBtn.disabled = true;
-                } else {
-                    publishBtn.disabled = !currentResult;
-                }
+                updatePublishButton();
+            }
+
+            function selectedDevToAccounts() {
+                return [...devtoAccountsList.querySelectorAll('input[type="checkbox"]:checked')]
+                    .map(input => input.value);
+            }
+
+            function updatePublishButton() {
+                publishBtn.disabled = busy || publishing || !currentResult || selectedDevToAccounts().length === 0;
             }
 
             function clearAlerts() {
@@ -1787,38 +1861,51 @@
                     });
                     if (!res.ok) throw new Error("HTTP " + res.status);
                     const list = await res.json();
-                    const current = devtoAccount.value;
-                    devtoAccount.innerHTML = "";
+                    if (!Array.isArray(list)) throw new Error("Unexpected response");
 
-                    if (!Array.isArray(list) || list.length === 0) {
-                        const opt = document.createElement("option");
-                        opt.value = "";
-                        opt.textContent = "No accounts configured";
-                        devtoAccount.appendChild(opt);
-                        devtoAccount.disabled = true;
-                        publishBtn.disabled = true;
-                        return;
-                    }
+                    const selected = new Set(selectedDevToAccounts());
+                    devtoAccountsList.innerHTML = "";
+                    let configuredCount = 0;
+                    list.forEach((account) => {
+                        const label = document.createElement("label");
+                        label.className = "account-choice" + (account.configured ? "" : " disabled");
 
-                    devtoAccount.disabled = false;
-                    list.forEach((a) => {
-                        const opt = document.createElement("option");
-                        opt.value = a.id;
-                        opt.textContent = a.label || a.id;
-                        devtoAccount.appendChild(opt);
+                        const checkbox = document.createElement("input");
+                        checkbox.type = "checkbox";
+                        checkbox.value = account.id;
+                        checkbox.checked = account.configured && selected.has(account.id);
+                        checkbox.disabled = !account.configured;
+                        checkbox.addEventListener("change", updatePublishButton);
+                        label.appendChild(checkbox);
+
+                        const name = document.createElement("span");
+                        name.textContent = account.configured
+                            ? (account.label || account.id)
+                            : `${account.label || account.id} — API key not configured`;
+                        label.appendChild(name);
+                        devtoAccountsList.appendChild(label);
+                        if (account.configured) configuredCount += 1;
                     });
-                    if ([...devtoAccount.options].some((o) => o.value === current)) {
-                        devtoAccount.value = current;
+
+                    if (list.length === 0) {
+                        devtoAccountsEmpty.textContent =
+                            "No accounts are saved. Configure a DEV_TO_API_KEY environment variable and restart the app.";
+                        devtoAccountsEmpty.classList.remove("hidden");
+                    } else if (configuredCount === 0) {
+                        devtoAccountsEmpty.textContent =
+                            "No database account has a configured API key. Configure its environment variable and restart the app.";
+                        devtoAccountsEmpty.classList.remove("hidden");
+                    } else {
+                        devtoAccountsEmpty.textContent = "";
+                        devtoAccountsEmpty.classList.add("hidden");
                     }
-                    publishBtn.disabled = !currentResult;
+                    updatePublishButton();
                 } catch (err) {
                     console.warn("Could not load Dev.to accounts:", err);
-                    const opt = document.createElement("option");
-                    opt.value = "";
-                    opt.textContent = "Could not load accounts";
-                    devtoAccount.innerHTML = "";
-                    devtoAccount.appendChild(opt);
-                    devtoAccount.disabled = true;
+                    devtoAccountsList.innerHTML = "";
+                    devtoAccountsEmpty.textContent = "Could not load accounts. Check the API connection and retry.";
+                    devtoAccountsEmpty.classList.remove("hidden");
+                    updatePublishButton();
                 }
             }
 
@@ -1958,7 +2045,7 @@
                 selectedHistoryId = currentGenerationId;
                 currentRawText = rawText || JSON.stringify(result, null, 2);
                 copyBtn.disabled = false;
-                publishBtn.disabled = false;
+                updatePublishButton();
 
                 if (currentResult.generation_saved === false) {
                     showAlert(
@@ -2494,86 +2581,114 @@
             function renderPublishResult(result) {
                 publishResult.classList.remove("hidden");
                 publishResult.innerHTML = "";
+                const results = Array.isArray(result.results) ? result.results : [result];
+                const statuses = results.map(item => item.status);
+                const status = result.status || statuses[0] || "error";
+                const kind = status === "success" ? "success"
+                    : status === "skipped" ? "skipped"
+                        : status === "partial" ? "partial" : "error";
+                const icon = { success: "✓", error: "✕", partial: "!", skipped: "⚠" }[kind];
+                const published = Boolean(results[0]?.published);
+                const title = kind === "success"
+                    ? (published
+                        ? (results.length > 1 ? `Published to ${results.length} accounts` : "Post published to Dev.to")
+                        : (results.length > 1 ? `Draft saved to ${results.length} accounts` : "Draft saved to Dev.to"))
+                    : kind === "partial" ? (published ? "Published to some accounts" : "Draft saved to some accounts")
+                        : kind === "skipped" ? "Publishing skipped" : "Publishing failed";
+                const summary = document.createElement("div");
+                summary.className = "result-hero " + kind;
+                const heading = document.createElement("h3");
+                heading.textContent = `${icon} ${title}`;
+                const subtitle = document.createElement("div");
+                subtitle.className = "hero-sub";
+                const successes = statuses.filter(value => value === "success").length;
+                const failures = statuses.filter(value => value === "error").length;
+                subtitle.textContent = results.length > 1
+                    ? `${successes} succeeded · ${failures} failed · ${statuses.filter(value => value === "skipped").length} skipped`
+                    : (results[0].reason || (results[0].published ? "Live on Dev.to" : "Saved as draft"));
+                summary.append(heading, subtitle);
+                publishResult.appendChild(summary);
 
-                const kind = result.status === "success" ? "success"
-                    : result.status === "skipped" ? "skipped" : "error";
+                results.forEach((outcome) => {
+                    const card = document.createElement("div");
+                    card.className = "publish-outcome";
+                    const accountInput = [...devtoAccountsList.querySelectorAll("input")]
+                        .find(input => input.value === outcome.account_id);
+                    const accountLabel = accountInput?.nextElementSibling?.textContent || outcome.account_id || "Unknown account";
+                    const accountHeading = document.createElement("h4");
+                    accountHeading.textContent = accountLabel;
+                    card.appendChild(accountHeading);
 
-                const hero = document.createElement("div");
-                hero.className = "result-hero " + kind;
-                const icon = { success: "✓", error: "✕", skipped: "⚠" }[kind];
-                const titleMap = {
-                    success: "Post published to Dev.to",
-                    error: "Dev.to rejected the request",
-                    skipped: "Not published",
-                };
-                hero.innerHTML = `
-                    <h3><span>${icon}</span> ${titleMap[kind]}</h3>
-                    <div class="hero-sub"></div>
-                `;
-                hero.querySelector(".hero-sub").textContent =
-                    result.reason || (result.published ? "Live on Dev.to" : "Saved as draft");
+                    const stats = document.createElement("div");
+                    stats.className = "result-stats";
+                    const items = [
+                        ["Status", outcome.status || "error", outcome.status || "error"],
+                        ["Visibility", outcome.published ? "Published" : "Draft", ""],
+                        ["HTTP", outcome.http_status != null ? String(outcome.http_status) : "—", ""],
+                        ["Article ID", outcome.article_id != null ? String(outcome.article_id) : "—", ""],
+                        ["Title", outcome.title || "—", ""],
+                    ];
+                    items.forEach(([label, value, cls]) => {
+                        const el = document.createElement("div");
+                        el.className = "result-stat " + (cls || "");
+                        const fieldLabel = document.createElement("div");
+                        fieldLabel.className = "stat-label";
+                        fieldLabel.textContent = label;
+                        const fieldValue = document.createElement("div");
+                        fieldValue.className = "stat-value";
+                        fieldValue.textContent = value;
+                        el.append(fieldLabel, fieldValue);
+                        stats.appendChild(el);
+                    });
+                    card.appendChild(stats);
 
-                if (result.article_url) {
-                    const a = document.createElement("a");
-                    a.className = "hero-link";
-                    a.href = result.article_url;
-                    a.target = "_blank";
-                    a.rel = "noopener noreferrer";
-                    a.textContent = "Open on Dev.to ↗";
-                    hero.appendChild(a);
-                }
-                publishResult.appendChild(hero);
-
-                const stats = document.createElement("div");
-                stats.className = "result-stats";
-                const items = [
-                    ["Status", result.status, result.status],
-                    ["Account", result.account_id || "—", ""],
-                    ["Visibility", result.published ? "Published" : "Draft", ""],
-                    ["HTTP", result.http_status != null ? String(result.http_status) : "—", ""],
-                    ["Article ID", result.article_id != null ? String(result.article_id) : "—", ""],
-                    ["Title", result.title || "—", ""],
-                ];
-                items.forEach(([label, value, cls]) => {
-                    const el = document.createElement("div");
-                    el.className = "result-stat " + (cls || "");
-                    const l = document.createElement("div");
-                    l.className = "stat-label";
-                    l.textContent = label;
-                    const v = document.createElement("div");
-                    v.className = "stat-value";
-                    v.textContent = value;
-                    el.appendChild(l);
-                    el.appendChild(v);
-                    stats.appendChild(el);
+                    if (outcome.reason) {
+                        const reason = document.createElement("p");
+                        reason.className = "publish-reason";
+                        reason.textContent = outcome.reason;
+                        card.appendChild(reason);
+                    }
+                    if (outcome.article_url) {
+                        const link = document.createElement("a");
+                        link.className = "hero-link";
+                        link.href = outcome.article_url;
+                        link.target = "_blank";
+                        link.rel = "noopener noreferrer";
+                        link.textContent = "Open on Dev.to ↗";
+                        card.appendChild(link);
+                    }
+                    if (outcome.raw != null) {
+                        const details = document.createElement("details");
+                        details.className = "result-raw";
+                        const detailsSummary = document.createElement("summary");
+                        detailsSummary.textContent = "Raw API response";
+                        const pre = document.createElement("pre");
+                        pre.textContent = typeof outcome.raw === "string"
+                            ? outcome.raw : JSON.stringify(outcome.raw, null, 2);
+                        details.append(detailsSummary, pre);
+                        card.appendChild(details);
+                    }
+                    publishResult.appendChild(card);
                 });
-                publishResult.appendChild(stats);
 
-                if (result.raw != null) {
-                    const details = document.createElement("details");
-                    details.className = "result-raw";
-                    const summary = document.createElement("summary");
-                    summary.textContent = "Raw API response";
-                    const pre = document.createElement("pre");
-                    pre.textContent = typeof result.raw === "string"
-                        ? result.raw
-                        : JSON.stringify(result.raw, null, 2);
-                    details.appendChild(summary);
-                    details.appendChild(pre);
-                    publishResult.appendChild(details);
-                }
-
-                setPublishStatus(kind, kind.charAt(0).toUpperCase() + kind.slice(1));
+                const statusLabel = kind === "partial" ? "Partial" : kind.charAt(0).toUpperCase() + kind.slice(1);
+                setPublishStatus(kind, statusLabel);
             }
 
             async function publishToDevTo() {
+                if (publishing) return;
                 if (!currentResult) {
                     toast("Generate a post first", "error");
                     return;
                 }
+                const accountIds = selectedDevToAccounts();
+                if (accountIds.length === 0) {
+                    toast("Select at least one configured account", "error");
+                    return;
+                }
                 const wantsPublish = publishCheck.checked;
-                const accountId = devtoAccount.value || "default";
 
+                publishing = true;
                 publishBtn.disabled = true;
                 publishBtn.textContent = wantsPublish ? "Publishing…" : "Saving draft…";
                 setPublishStatus("busy", wantsPublish ? "Publishing…" : "Saving draft…");
@@ -2586,7 +2701,7 @@
                             Accept: "application/json",
                         },
                         body: JSON.stringify({
-                            account_id: accountId,
+                            account_ids: accountIds,
                             publish: wantsPublish,
                             post: {
                                 title: currentResult.title || "",
@@ -2601,7 +2716,13 @@
                         showAlert("error", title, message, detail);
                         renderPublishResult({
                             status: "error",
-                            account_id: accountId,
+                            results: accountIds.map(account_id => ({
+                                status: "error",
+                                account_id,
+                                reason: message,
+                                http_status: res.status,
+                                raw: detail,
+                            })),
                             reason: message,
                             http_status: res.status,
                             raw: detail,
@@ -2613,20 +2734,28 @@
                     const data = await res.json();
                     renderPublishResult(data);
 
-                    if (data.status === "success") toast("Dev.to post created", "success");
+                    if (data.status === "success") {
+                        toast(wantsPublish ? "Dev.to post published" : "Dev.to draft saved", "success");
+                    }
+                    else if (data.status === "partial") toast("Some accounts could not publish", "error");
                     else if (data.status === "skipped") toast("Publishing skipped", "");
                     else toast("Dev.to returned an error", "error");
                 } catch (err) {
                     showAlert("error", "Publish failed", String(err && err.message || err));
                     renderPublishResult({
                         status: "error",
-                        account_id: accountId,
+                        results: accountIds.map(account_id => ({
+                            status: "error",
+                            account_id,
+                            reason: String(err && err.message || err),
+                        })),
                         reason: String(err && err.message || err),
                         raw: null,
                     });
                     toast("Publish failed", "error");
                 } finally {
-                    publishBtn.disabled = !currentResult;
+                    publishing = false;
+                    updatePublishButton();
                     publishBtn.textContent = "Publish to Dev.to";
                 }
             }

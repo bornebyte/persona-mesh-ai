@@ -148,22 +148,22 @@ def build_user_message(req: GenerateRequest, writing_user: dict[str, Any]) -> st
     tp = req.target_person
     return f"""
         WRITING_USER:
-        name: {writing_user.get('name', '')}
-        role: {writing_user.get('role', '')}
-        personality: {writing_user.get('personality', '')}
-        relationship_to_target: {writing_user.get('relationship', 'unknown')}
+        name: {writing_user.get("name", "")}
+        role: {writing_user.get("role", "")}
+        personality: {writing_user.get("personality", "")}
+        relationship_to_target: {writing_user.get("relationship", "unknown")}
 
         TARGET_PERSON:
         name: {tp.name}
-        role: {tp.role or 'unspecified'}
-        bio: {tp.bio or ''}
+        role: {tp.role or "unspecified"}
+        bio: {tp.bio or ""}
         notable_work: {tp.notable_work or []}
         links: {tp.links or []}
-        handle: {tp.handle or ''}
+        handle: {tp.handle or ""}
 
         PLATFORM: {req.platform}
-        TONE_HINT: {req.tone_hint or 'none'}
-        POST_SEED: {req.post_seed or 'none'}
+        TONE_HINT: {req.tone_hint or "none"}
+        POST_SEED: {req.post_seed or "none"}
     """.strip()
 
 
@@ -179,8 +179,14 @@ def build_messages(req: GenerateRequest, writing_user: dict[str, Any]) -> list:
 # ---------------------------------------------------------------------------
 
 REQUIRED_FIELDS = {
-    "platform", "title", "slug", "tags", "body_markdown",
-    "target_mentions", "target_links_included", "word_count",
+    "platform",
+    "title",
+    "slug",
+    "tags",
+    "body_markdown",
+    "target_mentions",
+    "target_links_included",
+    "word_count",
 }
 
 
@@ -209,9 +215,7 @@ def _coerce_to_schema(text: str, req: GenerateRequest) -> dict[str, Any]:
     title = f"Thoughts on {req.target_person.name}"
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
     mentions = body.count(req.target_person.name)
-    links_included = any(
-        link and link in body for link in req.target_person.links
-    )
+    links_included = any(link and link in body for link in req.target_person.links)
     return {
         "platform": req.platform,
         "title": title,
@@ -338,7 +342,8 @@ DEV_TO_ACCOUNTS: dict[str, str] = {
 
 
 class DevToPublishRequest(BaseModel):
-    account_id: str = "default"
+    account_id: str | None = None
+    account_ids: list[str] | None = Field(default=None, min_length=1, max_length=25)
     publish: bool = False
     post: dict[str, Any]
 
@@ -347,8 +352,12 @@ def list_devto_accounts() -> list[dict[str, str]]:
     """Expose account ids (never the keys) so the UI can render a selector."""
     return [
         {
-            "id": "default" if k == "DEV_TO_API_KEY" else k.replace("DEV_TO_API_KEY_", ""),
-            "label": "Default account" if k == "DEV_TO_API_KEY" else f"Account {k.replace('DEV_TO_API_KEY_', '')}",
+            "id": "default"
+            if k == "DEV_TO_API_KEY"
+            else k.replace("DEV_TO_API_KEY_", ""),
+            "label": "Default account"
+            if k == "DEV_TO_API_KEY"
+            else f"Account {k.replace('DEV_TO_API_KEY_', '')}",
         }
         for k in DEV_TO_ACCOUNTS
     ]
@@ -360,7 +369,9 @@ def _resolve_devto_key(account_id: str) -> str | None:
     return DEV_TO_ACCOUNTS.get(f"DEV_TO_API_KEY_{account_id}")
 
 
-def post_to_dev_to(post: dict[str, Any], account_id: str = "default", publish: bool = False) -> dict[str, Any]:
+def post_to_dev_to(
+    post: dict[str, Any], account_id: str = "default", publish: bool = False
+) -> dict[str, Any]:
     """Publish (or draft) a post to Dev.to. Returns a structured result."""
     api_key = _resolve_devto_key(account_id)
     if not api_key:
@@ -429,7 +440,9 @@ def post_to_dev_to(post: dict[str, Any], account_id: str = "default", publish: b
     return {
         "status": "error",
         "account_id": account_id,
-        "reason": body.get("error") or body.get("message") or f"HTTP {resp.status_code}",
+        "reason": body.get("error")
+        or body.get("message")
+        or f"HTTP {resp.status_code}",
         "http_status": resp.status_code,
         "article_url": None,
         "raw": body,
