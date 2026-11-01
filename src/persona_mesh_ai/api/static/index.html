@@ -1012,6 +1012,7 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            flex: 1 1 260px;
             max-width: 100%;
             padding: 8px 10px;
             background: var(--surface-2);
@@ -1020,6 +1021,29 @@
             color: var(--text);
             font-size: 12.5px;
             overflow-wrap: anywhere;
+        }
+
+        .account-choice-info {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .account-choice-name {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .account-choice-meta,
+        .account-choice-description {
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+
+        .account-choice-description {
+            margin: 2px 0 0;
         }
 
         .account-choice input {
@@ -1031,6 +1055,10 @@
         .account-choice.disabled {
             color: var(--text-muted);
             opacity: 0.7;
+        }
+
+        .account-choice.unconfigured {
+            border-style: dashed;
         }
 
         .history-card {
@@ -1868,21 +1896,63 @@
                     let configuredCount = 0;
                     list.forEach((account) => {
                         const label = document.createElement("label");
-                        label.className = "account-choice" + (account.configured ? "" : " disabled");
+                        label.className = "account-choice" + (account.configured ? "" : " unconfigured");
 
                         const checkbox = document.createElement("input");
                         checkbox.type = "checkbox";
                         checkbox.value = account.id;
-                        checkbox.checked = account.configured && selected.has(account.id);
-                        checkbox.disabled = !account.configured;
+                        checkbox.checked = selected.has(account.id);
                         checkbox.addEventListener("change", updatePublishButton);
                         label.appendChild(checkbox);
 
+                        const info = document.createElement("span");
+                        info.className = "account-choice-info";
                         const name = document.createElement("span");
-                        name.textContent = account.configured
-                            ? (account.label || account.id)
-                            : `${account.label || account.id} — API key not configured`;
-                        label.appendChild(name);
+                        name.className = "account-choice-name";
+                        name.textContent = account.name || account.label || account.id || "Unnamed account";
+                        info.appendChild(name);
+
+                        if (account.source === "user" && account.id) {
+                            const accountId = document.createElement("span");
+                            accountId.className = "account-choice-meta";
+                            accountId.textContent = `ID: ${account.id}`;
+                            info.appendChild(accountId);
+                        }
+
+                        const metadata = [account.role, account.relationship]
+                            .filter(value => typeof value === "string" && value.trim());
+                        if (metadata.length) {
+                            const meta = document.createElement("span");
+                            meta.className = "account-choice-meta";
+                            meta.textContent = metadata.join(" · ");
+                            info.appendChild(meta);
+                        }
+
+                        if (account.description) {
+                            const description = document.createElement("span");
+                            description.className = "account-choice-description";
+                            description.textContent = account.description;
+                            info.appendChild(description);
+                        }
+
+                        if (account.personality) {
+                            const personality = document.createElement("span");
+                            personality.className = "account-choice-meta";
+                            personality.textContent = `Personality: ${account.personality}`;
+                            info.appendChild(personality);
+                        }
+
+                        if (!account.configured) {
+                            const keyNote = document.createElement("span");
+                            keyNote.className = "account-choice-meta";
+                            const envName = account.id === "default"
+                                ? "DEV_TO_API_KEY"
+                                : `DEV_TO_API_KEY_${account.id}`;
+                            keyNote.textContent = `Dev.to key missing: ${envName}`;
+                            info.appendChild(keyNote);
+                        }
+
+                        label.appendChild(info);
                         devtoAccountsList.appendChild(label);
                         if (account.configured) configuredCount += 1;
                     });
@@ -1893,7 +1963,7 @@
                         devtoAccountsEmpty.classList.remove("hidden");
                     } else if (configuredCount === 0) {
                         devtoAccountsEmpty.textContent =
-                            "No database account has a configured API key. Configure its environment variable and restart the app.";
+                            "Database accounts are listed above. Add a Dev.to API key for an account to enable publishing, then restart the app.";
                         devtoAccountsEmpty.classList.remove("hidden");
                     } else {
                         devtoAccountsEmpty.textContent = "";
