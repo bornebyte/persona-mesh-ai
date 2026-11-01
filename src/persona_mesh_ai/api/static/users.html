@@ -53,9 +53,51 @@
 
         .app {
             max-width: 1280px;
-            margin: 0 auto;
+            margin: 0 0 0 238px;
             padding: 24px 20px 60px
         }
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            z-index: 5;
+            width: 238px;
+            padding: 24px 16px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            transition: width .18s ease
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 4px 10px 24px;
+            font-weight: 700
+        }
+
+        .sidebar-brand-mark {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 12px
+        }
+
+        .sidebar-nav { display: grid; gap: 5px }
+        .sidebar-nav a { display: flex; gap: 11px; align-items: center; padding: 10px 12px; border-radius: 9px; color: var(--muted); font-weight: 550; text-decoration: none }
+        .sidebar-nav a:hover { background: var(--surface-2); color: var(--text) }
+        .sidebar-nav a.active { background: var(--accent-soft); color: var(--accent) }
+        .sidebar-nav small { display: block; margin: 4px 10px 8px; color: var(--faint); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase }
+        .sidebar-toggle { position: absolute; top: 28px; right: -12px; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--border); border-radius: 50%; background: var(--surface); color: var(--muted); cursor: pointer; box-shadow: var(--shadow-sm) }
+        .sidebar.collapsed { width: 74px; padding-right: 10px; padding-left: 10px }
+        .sidebar.collapsed .sidebar-brand { justify-content: center; padding-right: 0; padding-left: 0 }
+        .sidebar.collapsed .sidebar-brand > span:last-child, .sidebar.collapsed .sidebar-nav small, .sidebar.collapsed .sidebar-nav a span { display: none }
+        .sidebar.collapsed .sidebar-nav a { justify-content: center; font-size: 18px }
+        body.sidebar-collapsed .app { margin-left: 74px }
 
         header.topbar {
             display: flex;
@@ -117,6 +159,17 @@
         }
 
         @media(max-width:960px) {
+            .sidebar { position: static; display: flex; align-items: center; gap: 18px; width: auto; padding: 12px 16px; overflow-x: auto }
+            .sidebar-brand { flex: 0 0 auto; padding: 0 }
+            .sidebar-nav { display: flex; gap: 4px }
+            .sidebar-nav small { display: none }
+            .sidebar-nav a { white-space: nowrap }
+            .sidebar-toggle { display: none }
+            .sidebar.collapsed { width: auto; padding: 12px 16px }
+            .sidebar.collapsed .sidebar-brand { justify-content: flex-start }
+            .sidebar.collapsed .sidebar-brand > span:last-child, .sidebar.collapsed .sidebar-nav a span { display: inline }
+            .sidebar.collapsed .sidebar-nav a { justify-content: flex-start; font-size: inherit }
+            .app { margin: 0 auto }
             .grid {
                 grid-template-columns: 1fr
             }
@@ -546,6 +599,16 @@
 </head>
 
 <body>
+    <aside class="sidebar">
+        <div class="sidebar-brand"><span class="sidebar-brand-mark">PM</span><span>Persona Mesh AI</span></div>
+        <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
+        <nav class="sidebar-nav" aria-label="Main navigation">
+            <small>Workspace</small>
+            <a href="/dashboard">▦ <span>Dashboard</span></a>
+            <a href="/post">✎ <span>Post &amp; Publish</span></a>
+            <a class="active" href="/users">♙ <span>User Management</span></a>
+        </nav>
+    </aside>
     <div class="app">
 
         <header class="topbar">
@@ -680,6 +743,26 @@
     <script>
         (function () {
             "use strict";
+
+            const sidebar = document.querySelector(".sidebar");
+            const sidebarToggle = document.getElementById("sidebar-toggle");
+            function applySidebarState(collapsed) {
+                document.body.classList.toggle("sidebar-collapsed", collapsed);
+                sidebar?.classList.toggle("collapsed", collapsed);
+                if (sidebarToggle) {
+                    sidebarToggle.textContent = collapsed ? "›" : "‹";
+                    sidebarToggle.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+                    sidebarToggle.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+                }
+            }
+            try { applySidebarState(localStorage.getItem("persona-mesh-sidebar-collapsed") === "true"); }
+            catch { applySidebarState(false); }
+            sidebarToggle?.addEventListener("click", () => {
+                const collapsed = !sidebar?.classList.contains("collapsed");
+                applySidebarState(collapsed);
+                try { localStorage.setItem("persona-mesh-sidebar-collapsed", String(collapsed)); }
+                catch { /* Sidebar still works when storage is unavailable. */ }
+            });
 
             const $ = (id) => document.getElementById(id);
             const apiBase = () => "";            // all requests use relative paths

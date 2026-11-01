@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Persona Mesh AI</title>
+    <title>Post &amp; Publish — Persona Mesh AI</title>
     <style>
         /* ---------- Reset & tokens ---------- */
         *,
@@ -55,8 +55,83 @@
         /* ---------- Layout ---------- */
         .app {
             max-width: 1360px;
-            margin: 0 auto;
+            margin: 0 0 0 238px;
             padding: 28px 24px 64px;
+        }
+
+        .sidebar {
+            position: fixed;
+            inset: 0 auto 0 0;
+            z-index: 5;
+            width: 238px;
+            padding: 24px 16px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            transition: width .18s ease;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 4px 10px 24px;
+            font-weight: 700;
+        }
+
+        .sidebar-brand-mark {
+            display: grid;
+            place-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 11px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 12px;
+        }
+
+        .sidebar-nav { display: grid; gap: 5px; }
+        .sidebar-nav a {
+            display: flex;
+            gap: 11px;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 9px;
+            color: var(--text-muted);
+            font-weight: 550;
+            text-decoration: none;
+        }
+        .sidebar-nav a:hover { background: var(--surface-2); color: var(--text); }
+        .sidebar-nav a.active { background: var(--accent-soft); color: var(--accent); }
+        .sidebar-toggle {
+            position: absolute;
+            top: 28px;
+            right: -12px;
+            display: grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            background: var(--surface);
+            color: var(--text-muted);
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+        }
+        .sidebar.collapsed { width: 74px; padding-right: 10px; padding-left: 10px; }
+        .sidebar.collapsed .sidebar-brand { justify-content: center; padding-right: 0; padding-left: 0; }
+        .sidebar.collapsed .sidebar-brand > span:last-child,
+        .sidebar.collapsed .sidebar-nav small,
+        .sidebar.collapsed .sidebar-nav a span { display: none; }
+        .sidebar.collapsed .sidebar-nav a { justify-content: center; font-size: 18px; }
+        body.sidebar-collapsed .app { margin-left: 74px; }
+        .sidebar-nav small {
+            display: block;
+            margin: 4px 10px 8px;
+            color: var(--text-faint);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
         }
 
         header.topbar {
@@ -145,6 +220,26 @@
         }
 
         @media (max-width: 960px) {
+            .sidebar {
+                position: static;
+                display: flex;
+                align-items: center;
+                gap: 18px;
+                width: auto;
+                padding: 12px 16px;
+                overflow-x: auto;
+            }
+            .sidebar-brand { flex: 0 0 auto; padding: 0; }
+            .sidebar-nav { display: flex; gap: 4px; }
+            .sidebar-nav small { display: none; }
+            .sidebar-nav a { white-space: nowrap; }
+            .sidebar-toggle { display: none; }
+            .sidebar.collapsed { width: auto; padding: 12px 16px; }
+            .sidebar.collapsed .sidebar-brand { justify-content: flex-start; }
+            .sidebar.collapsed .sidebar-brand > span:last-child,
+            .sidebar.collapsed .sidebar-nav a span { display: inline; }
+            .sidebar.collapsed .sidebar-nav a { justify-content: flex-start; font-size: inherit; }
+            .app { margin: 0 auto; }
             .grid {
                 grid-template-columns: 1fr;
             }
@@ -839,6 +934,15 @@
             overflow-wrap: anywhere;
         }
 
+        .publish-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+        .publish-tag { padding: 4px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 600; }
+        .publish-author { display: flex; align-items: center; gap: 8px; margin: 8px 0; color: var(--text-muted); font-size: 12px; }
+        .publish-author img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+        .publish-description { margin: 8px 0; color: var(--text-muted); font-size: 13px; }
+        .publish-article-preview { margin-top: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+        .publish-article-preview summary { color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
+        .publish-article-preview .markdown { margin-top: 12px; max-height: 420px; overflow: auto; }
+
         .result-hero h3 {
             font-size: 15px;
             font-weight: 600;
@@ -1414,13 +1518,23 @@
 </head>
 
 <body>
+    <aside class="sidebar">
+        <div class="sidebar-brand"><span class="sidebar-brand-mark">PM</span><span>Persona Mesh AI</span></div>
+        <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
+        <nav class="sidebar-nav" aria-label="Main navigation">
+            <small>Workspace</small>
+            <a href="/dashboard">▦ <span>Dashboard</span></a>
+            <a class="active" href="/post">✎ <span>Post &amp; Publish</span></a>
+            <a href="/users">♙ <span>User Management</span></a>
+        </nav>
+    </aside>
     <div class="app">
 
         <!-- ============ Header ============ -->
         <header class="topbar">
             <div class="brand">
                 <div class="brand-mark">PM</div>
-                <span>Persona Mesh AI</span>
+                <span>Post &amp; Publish</span>
             </div>
             <div id="status" class="status checking">
                 <span class="dot"></span>
@@ -1651,6 +1765,26 @@
 
         (function () {
             "use strict";
+
+            const sidebar = document.querySelector(".sidebar");
+            const sidebarToggle = document.getElementById("sidebar-toggle");
+            function applySidebarState(collapsed) {
+                document.body.classList.toggle("sidebar-collapsed", collapsed);
+                sidebar?.classList.toggle("collapsed", collapsed);
+                if (sidebarToggle) {
+                    sidebarToggle.textContent = collapsed ? "›" : "‹";
+                    sidebarToggle.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+                    sidebarToggle.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+                }
+            }
+            try { applySidebarState(localStorage.getItem("persona-mesh-sidebar-collapsed") === "true"); }
+            catch { applySidebarState(false); }
+            sidebarToggle?.addEventListener("click", () => {
+                const collapsed = !sidebar?.classList.contains("collapsed");
+                applySidebarState(collapsed);
+                try { localStorage.setItem("persona-mesh-sidebar-collapsed", String(collapsed)); }
+                catch { /* Sidebar still works when storage is unavailable. */ }
+            });
 
             // ---------- DOM refs ----------
             const $ = (id) => document.getElementById(id);
@@ -2519,6 +2653,25 @@
                         record.raw_text || JSON.stringify(record.result, null, 2),
                         record.id
                     );
+                    if (Array.isArray(record.publishing) && record.publishing.length) {
+                        const outcomes = record.publishing.map(item => ({
+                            account_id: item.account_id,
+                            status: item.status,
+                            published: item.published,
+                            article_id: item.remote_article_id,
+                            article_url: item.article_url,
+                            title: item.title,
+                            raw: item.result?.raw,
+                            http_status: item.result?.http_status,
+                            reason: item.result?.reason,
+                        }));
+                        renderPublishResult({
+                            status: outcomes.every(item => item.status === "success")
+                                ? "success"
+                                : outcomes.some(item => item.status === "success") ? "partial" : "error",
+                            results: outcomes,
+                        });
+                    }
                 } catch (err) {
                     showAlert("error", "Could not open saved generation", String(err.message || err));
                 }
@@ -2822,10 +2975,12 @@
                     card.className = "publish-outcome";
                     const accountInput = [...devtoAccountsList.querySelectorAll("input")]
                         .find(input => input.value === outcome.account_id);
-                    const accountLabel = accountInput?.nextElementSibling?.textContent || outcome.account_id || "Unknown account";
+                    const accountLabel = accountInput?.nextElementSibling?.querySelector(".account-choice-name")?.textContent
+                        || outcome.account_id || "Unknown account";
                     const accountHeading = document.createElement("h4");
                     accountHeading.textContent = accountLabel;
                     card.appendChild(accountHeading);
+                    const article = outcome.raw && typeof outcome.raw === "object" ? outcome.raw : null;
 
                     const stats = document.createElement("div");
                     stats.className = "result-stats";
@@ -2835,6 +2990,10 @@
                         ["HTTP", outcome.http_status != null ? String(outcome.http_status) : "—", ""],
                         ["Article ID", outcome.article_id != null ? String(outcome.article_id) : "—", ""],
                         ["Title", outcome.title || "—", ""],
+                        ["Reading time", article?.reading_time_minutes ? `${article.reading_time_minutes} min` : "—", ""],
+                        ["Reactions", article?.public_reactions_count ?? "—", ""],
+                        ["Comments", article?.comments_count ?? "—", ""],
+                        ["Language", article?.language || "—", ""],
                     ];
                     items.forEach(([label, value, cls]) => {
                         const el = document.createElement("div");
@@ -2859,11 +3018,76 @@
                     if (outcome.article_url) {
                         const link = document.createElement("a");
                         link.className = "hero-link";
-                        link.href = outcome.article_url;
-                        link.target = "_blank";
-                        link.rel = "noopener noreferrer";
-                        link.textContent = "Open on Dev.to ↗";
-                        card.appendChild(link);
+                        let articleUrl;
+                        try {
+                            const parsedUrl = new URL(outcome.article_url);
+                            if (parsedUrl.protocol === "https:" && parsedUrl.hostname === "dev.to") {
+                                articleUrl = parsedUrl.href;
+                            }
+                        } catch { }
+                        if (articleUrl) {
+                            link.href = articleUrl;
+                            link.target = "_blank";
+                            link.rel = "noopener noreferrer";
+                            link.textContent = "Open on Dev.to ↗";
+                            card.appendChild(link);
+                        }
+                    }
+                    if (article?.description) {
+                        const description = document.createElement("p");
+                        description.className = "publish-description";
+                        description.textContent = article.description;
+                        card.appendChild(description);
+                    }
+                    if (Array.isArray(article?.tags) && article.tags.length) {
+                        const tags = document.createElement("div");
+                        tags.className = "publish-tags";
+                        article.tags.forEach(tagText => {
+                            const tag = document.createElement("span");
+                            tag.className = "publish-tag";
+                            tag.textContent = tagText;
+                            tags.appendChild(tag);
+                        });
+                        card.appendChild(tags);
+                    }
+                    if (article?.user) {
+                        const author = document.createElement("div");
+                        author.className = "publish-author";
+                        if (article.user.profile_image_90) {
+                            const avatar = document.createElement("img");
+                            avatar.src = article.user.profile_image_90;
+                            avatar.alt = "";
+                            avatar.loading = "lazy";
+                            author.appendChild(avatar);
+                        }
+                        const authorName = document.createElement("span");
+                        authorName.textContent = [article.user.name, article.user.username ? `@${article.user.username}` : ""]
+                            .filter(Boolean).join(" · ");
+                        author.appendChild(authorName);
+                        card.appendChild(author);
+                    }
+                    const articleMeta = [
+                        article?.reading_time_minutes ? `${article.reading_time_minutes} min read` : "",
+                        article?.language,
+                        article?.created_at ? `Created ${new Date(article.created_at).toLocaleString()}` : "",
+                        article?.published_at ? `Published ${new Date(article.published_at).toLocaleString()}` : "",
+                    ].filter(Boolean);
+                    if (articleMeta.length) {
+                        const meta = document.createElement("p");
+                        meta.className = "field-note";
+                        meta.textContent = articleMeta.join(" · ");
+                        card.appendChild(meta);
+                    }
+                    if (article?.body_markdown) {
+                        const preview = document.createElement("details");
+                        preview.className = "publish-article-preview";
+                        const previewTitle = document.createElement("summary");
+                        previewTitle.textContent = "Article preview";
+                        const previewBody = document.createElement("div");
+                        previewBody.className = "markdown";
+                        previewBody.innerHTML = renderMarkdown(article.body_markdown);
+                        preview.append(previewTitle, previewBody);
+                        card.appendChild(preview);
                     }
                     if (outcome.raw != null) {
                         const details = document.createElement("details");
@@ -2878,6 +3102,29 @@
                     }
                     publishResult.appendChild(card);
                 });
+
+                const savedDraftAccounts = results
+                    .filter(item => item.status === "success" && !item.published && item.article_id != null)
+                    .map(item => item.account_id);
+                if (currentGenerationId && savedDraftAccounts.length) {
+                    const publishDraftButton = document.createElement("button");
+                    publishDraftButton.type = "button";
+                    publishDraftButton.className = "btn btn-primary btn-sm";
+                    publishDraftButton.style.marginTop = "12px";
+                    publishDraftButton.textContent = savedDraftAccounts.length > 1
+                        ? `Publish saved drafts (${savedDraftAccounts.length})`
+                        : "Publish saved draft";
+                    publishDraftButton.addEventListener("click", async () => {
+                        devtoAccountsList.querySelectorAll('input[type="checkbox"]').forEach(input => {
+                            input.checked = savedDraftAccounts.includes(input.value);
+                            input.closest(".account-choice")?.classList.toggle("selected", input.checked);
+                        });
+                        publishCheck.checked = true;
+                        updatePublishButton();
+                        await publishToDevTo();
+                    });
+                    summary.appendChild(publishDraftButton);
+                }
 
                 const statusLabel = kind === "partial" ? "Partial" : kind.charAt(0).toUpperCase() + kind.slice(1);
                 setPublishStatus(kind, statusLabel);
@@ -2910,6 +3157,7 @@
                         },
                         body: JSON.stringify({
                             account_ids: accountIds,
+                            generation_id: currentGenerationId,
                             publish: wantsPublish,
                             post: {
                                 title: currentResult.title || "",
@@ -3060,6 +3308,8 @@
                 loadPersonas();
                 loadDevToAccounts();
                 loadHistory({ reset: true });
+                const generationId = new URLSearchParams(window.location.search).get("generation_id");
+                if (generationId && /^\d+$/.test(generationId)) openGeneration(Number(generationId));
                 setInterval(checkHealth, 30000);
                 setInterval(loadPlatforms, 30000);
                 setInterval(loadPersonas, 30000);

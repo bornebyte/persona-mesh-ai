@@ -349,6 +349,7 @@ DEV_TO_ACCOUNTS: dict[str, str] = {
 class DevToPublishRequest(BaseModel):
     account_id: str | None = None
     account_ids: list[str] | None = Field(default=None, min_length=1, max_length=25)
+    generation_id: int | None = Field(default=None, ge=1)
     publish: bool = False
     post: dict[str, Any]
 
@@ -400,6 +401,7 @@ def post_to_dev_to(
     account_id: str = "default",
     publish: bool = False,
     api_key_override: str | None = None,
+    existing_article_id: int | None = None,
 ) -> dict[str, Any]:
     """Publish (or draft) a post to Dev.to. Returns a structured result."""
     api_key = api_key_override or _resolve_devto_key(account_id)
@@ -426,8 +428,16 @@ def post_to_dev_to(
     payload["article"] = {k: v for k, v in payload["article"].items() if v is not None}
 
     try:
-        resp = requests.post(
-            "https://dev.to/api/articles",
+        request_url = (
+            f"https://dev.to/api/articles/{existing_article_id}"
+            if existing_article_id is not None
+            else "https://dev.to/api/articles"
+        )
+        request_method = (
+            requests.put if existing_article_id is not None else requests.post
+        )
+        resp = request_method(
+            request_url,
             json=payload,
             headers={
                 "Content-Type": "application/json",

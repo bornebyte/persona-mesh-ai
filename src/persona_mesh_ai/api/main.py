@@ -15,7 +15,12 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from persona_mesh_ai.api import generation_store, publishing_store, user_store
+from persona_mesh_ai.api import (
+    activity_store,
+    generation_store,
+    publishing_store,
+    user_store,
+)
 from persona_mesh_ai.api.user_routes import router as user_router
 from persona_mesh_ai.core.main import (
     DevToPublishRequest,
@@ -39,6 +44,7 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     user_store.init_db()
     generation_store.init_db()
+    activity_store.init_db()
     publishing_store.init_db()
     publishing_store.sync_environment_accounts(list_devto_accounts())
     yield
@@ -69,6 +75,16 @@ from fastapi.responses import FileResponse
 
 @app.get("/")
 async def root():
+    return FileResponse(STATIC_DIR / "dashboard.html")
+
+
+@app.get("/dashboard", include_in_schema=False)
+async def dashboard_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "dashboard.html")
+
+
+@app.get("/post", include_in_schema=False)
+async def post_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
@@ -173,19 +189,57 @@ def _resolve_generation_persona(
 
 @app.post("/api/v1/chat")
 async def chat(request: GenerateRequest) -> dict[str, Any]:
-    effective_request, persona_registry, _ = _resolve_generation_persona(request)
+    effective_request, persona_registry, selected_persona = _resolve_generation_persona(
+        request
+    )
     try:
         result = generate_post(effective_request, persona_registry)
     except ValueError as exc:
         logger.warning("Generation failed: %s", exc)
+        try:
+            activity_store.log_event(
+                "generation_failed",
+                "generation",
+                "Post generation failed",
+                actor_id=effective_request.persona_id,
+                actor_name=selected_persona.get("name"),
+                details={"platform": effective_request.platform, "error": str(exc)},
+            )
+        except sqlite3.Error:
+            logger.exception("Generation failure activity could not be recorded")
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Unexpected error during generation")
+        try:
+            activity_store.log_event(
+                "generation_failed",
+                "generation",
+                "Post generation failed unexpectedly",
+                actor_id=effective_request.persona_id,
+                details={"platform": effective_request.platform, "error": str(exc)},
+            )
+        except sqlite3.Error:
+            logger.exception("Generation failure activity could not be recorded")
         raise HTTPException(
             status_code=500, detail="Internal generation error"
         ) from exc
 
     if "error" in result:
+        try:
+            activity_store.log_event(
+                "generation_rejected",
+                "generation",
+                "Generation returned insufficient detail",
+                actor_id=effective_request.persona_id,
+                actor_name=selected_persona.get("name"),
+                details={
+                    "platform": effective_request.platform,
+                    "error": result.get("error"),
+                    "reason": result.get("reason"),
+                },
+            )
+        except sqlite3.Error:
+            logger.exception("Generation rejection activity could not be recorded")
         raise HTTPException(status_code=422, detail=result)
 
     result["target_name"] = effective_request.target_person.name
@@ -197,6 +251,22 @@ async def chat(request: GenerateRequest) -> dict[str, Any]:
         )
         result["generation_id"] = generation_id
         result["generation_saved"] = True
+        try:
+            activity_store.log_event(
+                "generation_completed",
+                "generation",
+                f"Generated a post: {result.get('title') or 'Untitled'}",
+                entity_id=generation_id,
+                actor_id=str(result.get("writing_user_id") or "") or None,
+                actor_name=result.get("writing_user"),
+                details={
+                    "platform": result.get("platform"),
+                    "target_name": result.get("target_name"),
+                    "word_count": result.get("word_count"),
+                },
+            )
+        except sqlite3.Error:
+            logger.exception("Generation activity could not be recorded")
     except sqlite3.Error:
         logger.exception("Generated content could not be saved")
         result["generation_saved"] = False
@@ -238,12 +308,25 @@ def chat_stream(request: GenerateRequest) -> StreamingResponse:
                     result["writing_user"] = writing_user["name"]
                     result["writing_user_id"] = writing_user["id"]
                     result["target_name"] = effective_request.target_person.name
-                    generation_store.save_generation(
+                    generation_id = generation_store.save_generation(
                         effective_request.model_dump(),
                         result,
                         raw_text=raw_text,
                         generation_mode="stream",
                         status="completed" if completed else "partial",
+                    )
+                    activity_store.log_event(
+                        "generation_completed" if completed else "generation_partial",
+                        "generation",
+                        f"Streamed a post: {result.get('title') or 'Untitled'}",
+                        entity_id=generation_id,
+                        actor_id=writing_user.get("id"),
+                        actor_name=writing_user.get("name"),
+                        details={
+                            "platform": result.get("platform"),
+                            "target_name": result.get("target_name"),
+                            "word_count": result.get("word_count"),
+                        },
                     )
                 except Exception:
                     logger.exception("Streamed content could not be saved")
@@ -276,7 +359,51 @@ def get_generation(generation_id: int) -> dict[str, Any]:
         ) from exc
     if generation is None:
         raise HTTPException(status_code=404, detail="Generation not found")
+    try:
+        generation["publishing"] = activity_store.list_generation_publishing(
+            generation_id
+        )
+    except sqlite3.Error as exc:
+        logger.exception(
+            "Could not load publishing state for generation %s", generation_id
+        )
+        raise HTTPException(
+            status_code=503, detail="Could not load publishing state"
+        ) from exc
     return generation
+
+
+@app.get("/api/v1/dashboard")
+def get_dashboard() -> dict[str, Any]:
+    try:
+        return activity_store.dashboard_summary()
+    except sqlite3.Error as exc:
+        logger.exception("Could not load dashboard data")
+        raise HTTPException(
+            status_code=503, detail="Could not load dashboard data"
+        ) from exc
+
+
+@app.get("/api/v1/activity")
+def get_activity(limit: int = Query(default=30, ge=1, le=100)) -> list[dict[str, Any]]:
+    try:
+        return activity_store.list_activity(limit)
+    except sqlite3.Error as exc:
+        logger.exception("Could not load activity")
+        raise HTTPException(status_code=503, detail="Could not load activity") from exc
+
+
+@app.get("/api/v1/publishing-history")
+def get_publishing_history(
+    limit: int = Query(default=50, ge=1, le=100),
+) -> list[dict[str, Any]]:
+    try:
+        return activity_store.list_publishing_history(limit)
+    except sqlite3.Error as exc:
+        logger.exception("Could not load publishing history")
+        raise HTTPException(
+            status_code=503, detail="Could not load publishing history"
+        ) from exc
 
 
 @app.get("/api/v1/devto/accounts")
@@ -337,12 +464,22 @@ async def devto_publish(request: DevToPublishRequest) -> dict[str, Any]:
             )
         else:
             try:
+                existing_draft = (
+                    activity_store.find_latest_draft(request.generation_id, account_id)
+                    if request.generation_id is not None
+                    else None
+                )
                 results.append(
                     post_to_dev_to(
                         request.post,
                         account_id=account_id,
                         publish=request.publish,
                         api_key_override=account.get("api_key"),
+                        existing_article_id=(
+                            int(existing_draft["remote_article_id"])
+                            if existing_draft
+                            else None
+                        ),
                     )
                 )
             except Exception:
@@ -357,6 +494,29 @@ async def devto_publish(request: DevToPublishRequest) -> dict[str, Any]:
                         "raw": None,
                     }
                 )
+
+        outcome = results[-1]
+        draft_exists = bool(
+            request.generation_id is not None
+            and activity_store.find_latest_draft(request.generation_id, account_id)
+        )
+        if request.publish:
+            action = "draft_published" if draft_exists else "post_published"
+        else:
+            action = "draft_updated" if draft_exists else "draft_saved"
+        try:
+            history_id = activity_store.record_publishing(
+                generation_id=request.generation_id,
+                account_id=account_id,
+                account_name=account.get("label") if account else account_id,
+                action=action,
+                post=request.post,
+                result=outcome,
+            )
+            outcome["history_id"] = history_id
+            outcome["action"] = action
+        except sqlite3.Error:
+            logger.exception("Publishing history could not be saved for %s", account_id)
 
     if len(results) == 1:
         return results[0]

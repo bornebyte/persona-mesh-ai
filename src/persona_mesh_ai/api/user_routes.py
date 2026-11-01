@@ -20,7 +20,7 @@ from typing import Any
 from fastapi import APIRouter, Body, Header, HTTPException
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from . import user_store
+from . import activity_store, user_store
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -29,6 +29,13 @@ BULK_JSON_BODY = Body(...)
 MAX_BULK_USERS = 500
 MAX_BULK_JSON_BYTES = 2 * 1024 * 1024
 MAX_VALIDATION_ERRORS = 100
+
+
+def _log_user_activity(*args: Any, **kwargs: Any) -> None:
+    try:
+        activity_store.log_event(*args, **kwargs)
+    except sqlite3.Error:
+        logger.exception("User activity could not be recorded")
 
 
 class UserCreate(BaseModel):
@@ -68,7 +75,16 @@ def list_users() -> list[dict[str, Any]]:
 @router.post("", status_code=201)
 def create_user(body: UserCreate) -> dict[str, Any]:
     try:
-        return user_store.create_user(body.model_dump(exclude_none=True))
+        user = user_store.create_user(body.model_dump(exclude_none=True))
+        _log_user_activity(
+            "user_created",
+            "user",
+            f"Created user {user['name']}",
+            entity_id=user["id"],
+            actor_id=user["id"],
+            actor_name=user["name"],
+        )
+        return user
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.Error as exc:
@@ -145,6 +161,16 @@ def create_users_bulk(payload: Any = BULK_JSON_BODY) -> dict[str, Any]:
 
     try:
         users = user_store.create_users(validated_users)
+        for user in users:
+            _log_user_activity(
+                "user_created",
+                "user",
+                f"Created user {user['name']} from JSON import",
+                entity_id=user["id"],
+                actor_id=user["id"],
+                actor_name=user["name"],
+                details={"source": "json_import"},
+            )
     except ValueError as exc:
         status_code = 409 if "already exists" in str(exc) else 422
         raise HTTPException(
@@ -187,10 +213,28 @@ def update_user(user_id: str, body: UserUpdate) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _log_user_activity(
+        "user_updated",
+        "user",
+        f"Updated user {user['name']}",
+        entity_id=user_id,
+        actor_id=user_id,
+        actor_name=user["name"],
+        details={"fields": sorted(body.model_dump(exclude_unset=True).keys())},
+    )
     return user
 
 
 @router.delete("/{user_id}", status_code=204)
 def delete_user(user_id: str) -> None:
-    if not user_store.delete_user(user_id):
+    user = user_store.get_user(user_id)
+    if not user or not user_store.delete_user(user_id):
         raise HTTPException(status_code=404, detail="User not found")
+    _log_user_activity(
+        "user_deleted",
+        "user",
+        f"Deleted user {user['name']}",
+        entity_id=user_id,
+        actor_id=user_id,
+        actor_name=user["name"],
+    )
