@@ -22,3 +22,6 @@ htmlcov/
 # Build output
 dist/
 build/
+
+
+persona_mesh_users.db

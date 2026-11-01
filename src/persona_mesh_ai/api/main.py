@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -22,6 +24,8 @@ from persona_mesh_ai.core.main import (
     list_devto_accounts,
     post_to_dev_to,
 )
+from persona_mesh_ai.api.user_routes import router as user_router
+from persona_mesh_ai.api.user_store import init_db
 
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -37,11 +41,21 @@ from persona_mesh_ai.core.main import (
 logger = logging.getLogger("persona_mesh_ai.api")
 logging.basicConfig(level=logging.INFO)
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="Persona Mesh AI API",
     description="A platform for orchestrating configurable AI agents.",
     version="0.1.0",
+    lifespan=lifespan,
 )
+
+app.include_router(user_router)
 
 app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
 
@@ -59,6 +73,13 @@ from fastapi.responses import FileResponse
 @app.get("/")
 async def root():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/user", include_in_schema=False)
+@app.get("/users", include_in_schema=False)
+async def users_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "users.html")
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:
