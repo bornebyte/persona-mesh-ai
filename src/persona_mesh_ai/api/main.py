@@ -342,6 +342,7 @@ async def devto_publish(request: DevToPublishRequest) -> dict[str, Any]:
                         request.post,
                         account_id=account_id,
                         publish=request.publish,
+                        api_key_override=account.get("api_key"),
                     )
                 )
             except Exception:

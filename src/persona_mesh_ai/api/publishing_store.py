@@ -1,4 +1,4 @@
-"""Database-backed publishing account catalog with environment-backed secrets."""
+"""Database-backed publishing account catalog with environment fallbacks."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
-from .user_store import DB_PATH
+from .user_store import DB_PATH, get_user_api_key
 
 _lock = threading.Lock()
 
@@ -99,7 +99,9 @@ def list_accounts() -> list[dict[str, Any]]:
                 "relationship": user["relationship"],
                 "personality": user["personality"],
                 "source": "user",
-                "configured": bool(os.getenv(secret_env_var)),
+                "configured": bool(
+                    get_user_api_key(account_id) or os.getenv(secret_env_var)
+                ),
             }
         )
 
@@ -122,6 +124,20 @@ def list_accounts() -> list[dict[str, Any]]:
 
 
 def get_account(account_id: str) -> dict[str, Any] | None:
+    with _connect() as conn:
+        user = conn.execute(
+            "SELECT persona_id, name FROM users WHERE persona_id = ?",
+            (account_id,),
+        ).fetchone()
+    if user is not None:
+        api_key = get_user_api_key(account_id)
+        return {
+            "id": user["persona_id"],
+            "label": user["name"],
+            "configured": bool(api_key or os.getenv(f"DEV_TO_API_KEY_{account_id}")),
+            "api_key": api_key,
+        }
+
     with _connect() as conn:
         row = conn.execute(
             "SELECT id, label, secret_env_var FROM publishing_accounts WHERE id = ?",

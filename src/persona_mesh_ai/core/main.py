@@ -7,6 +7,7 @@ import logging
 import os
 import random
 import re
+import unicodedata
 from collections.abc import Iterator
 from typing import Any
 
@@ -237,17 +238,21 @@ def parse_response(raw: str, req: GenerateRequest) -> dict[str, Any]:
         if "error" in data:
             logger.info("Model returned error object; ignoring and coercing. %r", data)
         elif REQUIRED_FIELDS.issubset(data.keys()):
+            data["tags"] = normalize_devto_tags(data.get("tags"))
             return data
         else:
             # Partial JSON — merge with coerced fallback.
             fallback = _coerce_to_schema(data.get("body_markdown", ""), req)
             fallback.update({k: v for k, v in data.items() if v not in (None, "")})
+            fallback["tags"] = normalize_devto_tags(fallback.get("tags"))
             return fallback
 
     logger.warning(
         "Model did not return JSON; coercing to schema. Raw prefix: %r", raw[:200]
     )
-    return _coerce_to_schema(raw, req)
+    fallback = _coerce_to_schema(raw, req)
+    fallback["tags"] = normalize_devto_tags(fallback.get("tags"))
+    return fallback
 
 
 # ---------------------------------------------------------------------------
@@ -369,11 +374,35 @@ def _resolve_devto_key(account_id: str) -> str | None:
     return DEV_TO_ACCOUNTS.get(f"DEV_TO_API_KEY_{account_id}")
 
 
+def normalize_devto_tags(tags: Any) -> list[str]:
+    """Return up to four lowercase ASCII alphanumeric Dev.to tags."""
+    if not isinstance(tags, list):
+        return []
+    normalized: list[str] = []
+    for value in tags:
+        if not isinstance(value, str):
+            continue
+        ascii_value = (
+            unicodedata.normalize("NFKD", value)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+        tag = re.sub(r"[^a-z0-9]", "", ascii_value.lower())[:30]
+        if tag and tag not in normalized:
+            normalized.append(tag)
+        if len(normalized) == 4:
+            break
+    return normalized
+
+
 def post_to_dev_to(
-    post: dict[str, Any], account_id: str = "default", publish: bool = False
+    post: dict[str, Any],
+    account_id: str = "default",
+    publish: bool = False,
+    api_key_override: str | None = None,
 ) -> dict[str, Any]:
     """Publish (or draft) a post to Dev.to. Returns a structured result."""
-    api_key = _resolve_devto_key(account_id)
+    api_key = api_key_override or _resolve_devto_key(account_id)
     if not api_key:
         logger.warning("No Dev.to API key for account '%s'", account_id)
         return {
@@ -390,7 +419,7 @@ def post_to_dev_to(
             "title": post.get("title", "Untitled"),
             "published": bool(publish),
             "body_markdown": post.get("body_markdown", ""),
-            "tags": (post.get("tags") or [])[:4],  # Dev.to max 4 tags
+            "tags": normalize_devto_tags(post.get("tags")),
             "canonical_url": post.get("canonical_url") or None,
         }
     }

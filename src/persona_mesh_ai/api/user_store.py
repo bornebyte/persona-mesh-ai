@@ -88,12 +88,6 @@ def init_db() -> None:
             "UPDATE users SET persona_id = CAST(id AS TEXT) "
             "WHERE persona_id IS NULL OR persona_id = ''"
         )
-        for row in conn.execute("SELECT id, api_key FROM users").fetchall():
-            if not _is_api_key_digest(row["api_key"]):
-                conn.execute(
-                    "UPDATE users SET api_key = ? WHERE id = ?",
-                    (_api_key_digest(row["api_key"]), row["id"]),
-                )
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_persona_id "
             "ON users(persona_id)"
@@ -137,9 +131,21 @@ def get_user_by_api_key(api_key: str) -> dict[str, Any] | None:
         return None
     with _connect() as conn:
         row = conn.execute(
-            "SELECT * FROM users WHERE api_key = ?", (_api_key_digest(api_key),)
+            "SELECT * FROM users WHERE api_key IN (?, ?)",
+            (api_key, _api_key_digest(api_key)),
         ).fetchone()
     return _row_to_dict(row) if row else None
+
+
+def get_user_api_key(user_id: str) -> str | None:
+    """Return the stored publisher key when available; legacy digests are irreversible."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT api_key FROM users WHERE persona_id = ?", (user_id,)
+        ).fetchone()
+    if row is None or _is_api_key_digest(row["api_key"]):
+        return None
+    return row["api_key"]
 
 
 def _normalize_user_payload(payload: dict[str, Any]) -> dict[str, str]:
@@ -165,7 +171,7 @@ def _normalize_user_payload(payload: dict[str, Any]) -> dict[str, str]:
 
     return {
         "id": persona_id,
-        "api_key": _api_key_digest(api_key),
+        "api_key": api_key,
         **fields,
     }
 
@@ -282,7 +288,7 @@ def update_user(user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
                      WHERE persona_id = ?
                     """,
                     (
-                        _api_key_digest(api_key),
+                        api_key,
                         fields["name"],
                         fields["role"],
                         fields["description"],

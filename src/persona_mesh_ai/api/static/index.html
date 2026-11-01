@@ -1612,6 +1612,9 @@
                         </div>
                         <div class="account-picker-actions">
                             <span class="account-selection-count" id="devto-selected-count">0 selected</span>
+                            <button type="button" class="btn btn-ghost btn-sm" id="toggle-all-accounts" disabled>
+                                Select all
+                            </button>
                             <button type="button" class="btn btn-ghost btn-sm" id="refresh-accounts">
                                 Refresh
                             </button>
@@ -1670,6 +1673,7 @@
             const devtoAccountsList = $("devto-accounts");
             const devtoAccountsEmpty = $("devto-accounts-empty");
             const devtoSelectedCount = $("devto-selected-count");
+            const toggleAllAccountsBtn = $("toggle-all-accounts");
             const publishBtn = $("publish-btn");
             const publishStatus = $("publish-status");
             const publishStatusText = $("publish-status-text");
@@ -1741,9 +1745,23 @@
             }
 
             function updatePublishButton() {
-                const selectedCount = selectedDevToAccounts().length;
+                const checkboxes = [...devtoAccountsList.querySelectorAll('input[type="checkbox"]')];
+                const selectedCount = checkboxes.filter(input => input.checked).length;
                 devtoSelectedCount.textContent = `${selectedCount} selected`;
+                const allSelected = checkboxes.length > 0 && selectedCount === checkboxes.length;
+                toggleAllAccountsBtn.disabled = checkboxes.length === 0;
+                toggleAllAccountsBtn.textContent = allSelected ? "Clear selection" : "Select all";
                 publishBtn.disabled = busy || publishing || !currentResult || selectedCount === 0;
+            }
+
+            function toggleAllAccounts() {
+                const checkboxes = [...devtoAccountsList.querySelectorAll('input[type="checkbox"]')];
+                const selectAll = checkboxes.some(input => !input.checked);
+                checkboxes.forEach((input) => {
+                    input.checked = selectAll;
+                    input.closest(".account-choice")?.classList.toggle("selected", selectAll);
+                });
+                updatePublishButton();
             }
 
             function clearAlerts() {
@@ -3014,6 +3032,7 @@
             resetBtn.addEventListener("click", resetForm);
             copyBtn.addEventListener("click", copyOutput);
             publishBtn.addEventListener("click", publishToDevTo);
+            toggleAllAccountsBtn.addEventListener("click", toggleAllAccounts);
             refreshAccountsBtn.addEventListener("click", loadDevToAccounts);
             refreshHistoryBtn.addEventListener("click", () => loadHistory({ reset: true }));
             loadMoreHistoryBtn.addEventListener("click", () => loadHistory());
