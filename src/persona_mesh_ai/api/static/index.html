@@ -44,7 +44,7 @@
 
         body {
             font-family: var(--font);
-            background: var(--bg);
+            background: #f5f7fb;
             color: var(--text);
             line-height: 1.55;
             font-size: 14px;
@@ -54,9 +54,9 @@
 
         /* ---------- Layout ---------- */
         .app {
-            max-width: 1280px;
+            max-width: 1360px;
             margin: 0 auto;
-            padding: 24px 20px 60px;
+            padding: 28px 24px 64px;
         }
 
         header.topbar {
@@ -154,13 +154,14 @@
         .card {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-sm);
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(24, 24, 27, 0.035);
         }
 
         .card-header {
             padding: 16px 20px;
             border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, #fff 0%, #fcfcfd 100%);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -780,7 +781,13 @@
 
         /* ---------- Dev.to publish result ---------- */
         .publish-card {
-            margin-top: 8px;
+            margin-top: 20px;
+        }
+
+        .publish-actions {
+            margin-top: 14px;
+            padding-top: 0;
+            border-top: 0;
         }
 
         .result-hero {
@@ -1002,63 +1009,173 @@
             margin-left: 4px;
         }
 
-        .account-list {
+        .account-picker {
+            padding: 18px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #fcfcfd;
+        }
+
+        .account-picker-head {
             display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .account-picker-title {
+            display: block;
+            margin: 0;
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .account-picker-copy {
+            margin-top: 2px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .account-picker-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+        }
+
+        .account-selection-count {
+            padding: 5px 9px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--surface);
+            color: var(--text-muted);
+            font-size: 11.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .account-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+            gap: 10px;
         }
 
         .account-choice {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 8px;
-            flex: 1 1 260px;
-            max-width: 100%;
-            padding: 8px 10px;
-            background: var(--surface-2);
+            gap: 12px;
+            width: 100%;
+            min-width: 0;
+            min-height: 72px;
+            padding: 12px 14px;
             border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
+            border-radius: 11px;
+            background: var(--surface);
             color: var(--text);
-            font-size: 12.5px;
-            overflow-wrap: anywhere;
+            cursor: pointer;
+            transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .account-choice:hover {
+            border-color: #b8c8ec;
+            box-shadow: 0 3px 10px rgba(37, 99, 235, 0.06);
+        }
+
+        .account-choice.selected {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+        }
+
+        .account-choice:focus-within {
+            outline: 3px solid rgba(37, 99, 235, 0.16);
+            outline-offset: 2px;
+        }
+
+        .account-choice input[type="checkbox"] {
+            display: grid;
+            place-content: center;
+            appearance: none;
+            flex: 0 0 19px;
+            width: 19px;
+            height: 19px;
+            margin: 0;
+            border: 1.5px solid #c4c9d4;
+            border-radius: 6px;
+            background: var(--surface);
+            cursor: pointer;
+            transition: background 0.16s ease, border-color 0.16s ease;
+        }
+
+        .account-choice input[type="checkbox"]::after {
+            width: 5px;
+            height: 9px;
+            border: solid #fff;
+            border-width: 0 2px 2px 0;
+            content: "";
+            opacity: 0;
+            transform: rotate(45deg) translate(-1px, -1px);
+        }
+
+        .account-choice input[type="checkbox"]:checked {
+            border-color: var(--accent);
+            background: var(--accent);
+        }
+
+        .account-choice input[type="checkbox"]:checked::after {
+            opacity: 1;
         }
 
         .account-choice-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .account-choice-text {
             display: grid;
-            gap: 3px;
+            gap: 2px;
             min-width: 0;
         }
 
         .account-choice-name {
             color: var(--text);
+            font-size: 13px;
             font-weight: 600;
-        }
-
-        .account-choice-meta,
-        .account-choice-description {
-            color: var(--text-muted);
-            font-size: 12px;
-            line-height: 1.45;
+            line-height: 1.35;
             overflow-wrap: anywhere;
         }
 
-        .account-choice-description {
-            margin: 2px 0 0;
-        }
-
-        .account-choice input {
-            flex: 0 0 auto;
-            margin: 0;
-            accent-color: var(--accent);
-        }
-
-        .account-choice.disabled {
+        .account-choice-role {
             color: var(--text-muted);
-            opacity: 0.7;
+            font-size: 11.5px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
         }
 
-        .account-choice.unconfigured {
-            border-style: dashed;
+        .account-choice-status {
+            flex: 0 0 auto;
+            padding: 4px 7px;
+            border-radius: 999px;
+            background: var(--warning-soft);
+            color: #9a6700;
+            font-size: 10.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .account-choice-status.ready {
+            background: var(--success-soft);
+            color: var(--success);
+        }
+
+        .account-picker .field-note {
+            margin-top: 10px;
         }
 
         .history-card {
@@ -1237,6 +1354,24 @@
             .publish-check-row .check-hint {
                 display: block;
                 margin-left: 0;
+            }
+
+            .account-picker {
+                padding: 14px;
+            }
+
+            .account-picker-head {
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+
+            .account-picker-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .account-list {
+                grid-template-columns: minmax(0, 1fr);
             }
         }
 
@@ -1451,7 +1586,7 @@
         </section>
 
         <!-- ============ Publish to Dev.to ============ -->
-        <div class="card publish-card" id="publish-card" style="margin-top: 20px;">
+        <div class="card publish-card" id="publish-card">
             <div class="card-header">
                 <div class="card-title">Publish to Dev.to</div>
                 <span class="status" id="publish-status">
@@ -1469,25 +1604,28 @@
                     </label>
                 </div>
 
-                <div class="row">
-                    <div class="field">
-                        <label>Dev.to accounts <span class="hint">(select one or more)</span></label>
-                        <div id="devto-accounts" class="account-list" aria-live="polite">
-                            <div class="field-note">Loading accounts…</div>
+                <div class="account-picker">
+                    <div class="account-picker-head">
+                        <div>
+                            <div class="account-picker-title">Publishing accounts</div>
+                            <div class="account-picker-copy">Choose one or more destinations for this post.</div>
                         </div>
-                        <div id="devto-accounts-empty" class="field-note hidden"></div>
+                        <div class="account-picker-actions">
+                            <span class="account-selection-count" id="devto-selected-count">0 selected</span>
+                            <button type="button" class="btn btn-ghost btn-sm" id="refresh-accounts">
+                                Refresh
+                            </button>
+                        </div>
                     </div>
-                    <div class="field" style="display: flex; align-items: flex-end;">
-                        <button type="button" class="btn btn-ghost btn-sm" id="refresh-accounts"
-                            style="width: 100%;">
-                            Refresh accounts
-                        </button>
+                    <div id="devto-accounts" class="account-list" role="group" aria-label="Publishing accounts"
+                        aria-live="polite">
+                        <div class="field-note">Loading accounts…</div>
                     </div>
+                    <div id="devto-accounts-empty" class="field-note hidden"></div>
                 </div>
 
-                <div class="form-actions" style="border-top: none; padding-top: 0; margin-top: 8px;">
-                    <button type="button" class="btn btn-primary" id="publish-btn" disabled
-                        style="width: 100%;">
+                <div class="form-actions publish-actions">
+                    <button type="button" class="btn btn-primary" id="publish-btn" disabled>
                         Publish to Dev.to
                     </button>
                 </div>
@@ -1531,6 +1669,7 @@
             const publishCheck = $("publish-check");
             const devtoAccountsList = $("devto-accounts");
             const devtoAccountsEmpty = $("devto-accounts-empty");
+            const devtoSelectedCount = $("devto-selected-count");
             const publishBtn = $("publish-btn");
             const publishStatus = $("publish-status");
             const publishStatusText = $("publish-status-text");
@@ -1602,7 +1741,9 @@
             }
 
             function updatePublishButton() {
-                publishBtn.disabled = busy || publishing || !currentResult || selectedDevToAccounts().length === 0;
+                const selectedCount = selectedDevToAccounts().length;
+                devtoSelectedCount.textContent = `${selectedCount} selected`;
+                publishBtn.disabled = busy || publishing || !currentResult || selectedCount === 0;
             }
 
             function clearAlerts() {
@@ -1896,61 +2037,40 @@
                     let configuredCount = 0;
                     list.forEach((account) => {
                         const label = document.createElement("label");
-                        label.className = "account-choice" + (account.configured ? "" : " unconfigured");
+                        label.className = "account-choice";
 
                         const checkbox = document.createElement("input");
                         checkbox.type = "checkbox";
                         checkbox.value = account.id;
                         checkbox.checked = selected.has(account.id);
-                        checkbox.addEventListener("change", updatePublishButton);
+                        label.classList.toggle("selected", checkbox.checked);
+                        checkbox.addEventListener("change", () => {
+                            label.classList.toggle("selected", checkbox.checked);
+                            updatePublishButton();
+                        });
                         label.appendChild(checkbox);
 
                         const info = document.createElement("span");
                         info.className = "account-choice-info";
+                        const text = document.createElement("span");
+                        text.className = "account-choice-text";
                         const name = document.createElement("span");
                         name.className = "account-choice-name";
                         name.textContent = account.name || account.label || account.id || "Unnamed account";
-                        info.appendChild(name);
+                        text.appendChild(name);
 
-                        if (account.source === "user" && account.id) {
-                            const accountId = document.createElement("span");
-                            accountId.className = "account-choice-meta";
-                            accountId.textContent = `ID: ${account.id}`;
-                            info.appendChild(accountId);
+                        if (account.role) {
+                            const role = document.createElement("span");
+                            role.className = "account-choice-role";
+                            role.textContent = account.role;
+                            text.appendChild(role);
                         }
+                        info.appendChild(text);
 
-                        const metadata = [account.role, account.relationship]
-                            .filter(value => typeof value === "string" && value.trim());
-                        if (metadata.length) {
-                            const meta = document.createElement("span");
-                            meta.className = "account-choice-meta";
-                            meta.textContent = metadata.join(" · ");
-                            info.appendChild(meta);
-                        }
-
-                        if (account.description) {
-                            const description = document.createElement("span");
-                            description.className = "account-choice-description";
-                            description.textContent = account.description;
-                            info.appendChild(description);
-                        }
-
-                        if (account.personality) {
-                            const personality = document.createElement("span");
-                            personality.className = "account-choice-meta";
-                            personality.textContent = `Personality: ${account.personality}`;
-                            info.appendChild(personality);
-                        }
-
-                        if (!account.configured) {
-                            const keyNote = document.createElement("span");
-                            keyNote.className = "account-choice-meta";
-                            const envName = account.id === "default"
-                                ? "DEV_TO_API_KEY"
-                                : `DEV_TO_API_KEY_${account.id}`;
-                            keyNote.textContent = `Dev.to key missing: ${envName}`;
-                            info.appendChild(keyNote);
-                        }
+                        const connectionStatus = document.createElement("span");
+                        connectionStatus.className = "account-choice-status" + (account.configured ? " ready" : "");
+                        connectionStatus.textContent = account.configured ? "Ready" : "Key needed";
+                        info.appendChild(connectionStatus);
 
                         label.appendChild(info);
                         devtoAccountsList.appendChild(label);
